@@ -4,20 +4,20 @@ import { Buffer } from 'buffer';
 // Map Expo FileSystem to Node fs.promises
 const fsPromises = {
   readFile: async (path: string, options?: any) => {
-    const encoding = options === 'utf8' || options?.encoding === 'utf8' ? FileSystem.EncodingType.UTF8 : FileSystem.EncodingType.Base64;
-    const content = await FileSystem.readAsStringAsync(path, { encoding });
-    if (encoding === FileSystem.EncodingType.Base64) {
+    const encoding = options === 'utf8' || options?.encoding === 'utf8' ? 'utf8' : 'base64';
+    const content = await FileSystem.readAsStringAsync(path, { encoding: encoding as any });
+    if (encoding === 'base64') {
       return Buffer.from(content, 'base64');
     }
     return content;
   },
   writeFile: async (path: string, data: any, options?: any) => {
     let content = data;
-    let encoding = FileSystem.EncodingType.UTF8;
+    let encoding = 'utf8';
     
     if (Buffer.isBuffer(data)) {
       content = data.toString('base64');
-      encoding = FileSystem.EncodingType.Base64;
+      encoding = 'base64';
     } else if (typeof data === 'string') {
         if (options === 'utf8' || options?.encoding === 'utf8') {
             // content is already string
@@ -26,7 +26,7 @@ const fsPromises = {
         }
     }
     
-    await FileSystem.writeAsStringAsync(path, content, { encoding });
+    await FileSystem.writeAsStringAsync(path, content, { encoding: encoding as any });
   },
   unlink: async (path: string) => {
     await FileSystem.deleteAsync(path);

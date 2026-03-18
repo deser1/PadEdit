@@ -1,6 +1,6 @@
 import * as FileSystem from 'expo-file-system';
 
-export const rootDirectory = FileSystem.documentDirectory + 'projects/';
+export const rootDirectory = ((FileSystem as any).documentDirectory || '') + 'projects/';
 
 export const ensureRootDirectory = async () => {
   const dirInfo = await FileSystem.getInfoAsync(rootDirectory);

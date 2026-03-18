@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Button, TextInput } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import * as FileSystem from 'expo-file-system';
-import { Folder, FileCode, Plus, Download } from 'lucide-react-native';
+import { FileCode, Plus } from 'lucide-react-native';
+import { HomeScreenNavigationProp } from '../navigation/types';
 
 export default function HomeScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<HomeScreenNavigationProp>();
   const [files, setFiles] = useState<string[]>([]);
   const [repoUrl, setRepoUrl] = useState('');
 
@@ -14,7 +15,7 @@ export default function HomeScreen() {
   }, []);
 
   const loadFiles = async () => {
-    const dir = FileSystem.documentDirectory + 'projects/';
+    const dir = ((FileSystem as any).documentDirectory || '') + 'projects/';
     const info = await FileSystem.getInfoAsync(dir);
     if (!info.exists) {
       await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
@@ -28,7 +29,6 @@ export default function HomeScreen() {
   };
 
   const handleClone = () => {
-    // Implement clone logic or navigate to specialized screen
     console.log('Cloning repo:', repoUrl);
   };
 

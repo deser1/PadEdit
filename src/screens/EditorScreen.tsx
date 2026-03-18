@@ -4,14 +4,15 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import * as FileSystem from 'expo-file-system';
 import CodeEditor from '../components/CodeEditor';
 import { Save, GitBranch, Terminal, Settings } from 'lucide-react-native';
+import { EditorScreenRouteProp, EditorScreenNavigationProp } from '../navigation/types';
 
 export default function EditorScreen() {
-  const route = useRoute();
-  const navigation = useNavigation();
+  const route = useRoute<EditorScreenRouteProp>();
+  const navigation = useNavigation<EditorScreenNavigationProp>();
   const { filename, newFile } = route.params || {};
   const [code, setCode] = useState('// Write your code here...');
   const [language, setLanguage] = useState('javascript');
-  const [theme, setTheme] = useState('vs-dark');
+  const [theme, setTheme] = useState<'vs-dark' | 'vs-light'>('vs-dark');
   const [isAiModalVisible, setIsAiModalVisible] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
 
@@ -24,7 +25,7 @@ export default function EditorScreen() {
 
   const loadFile = async (file: string) => {
     try {
-      const content = await FileSystem.readAsStringAsync(FileSystem.documentDirectory + 'projects/' + file);
+      const content = await FileSystem.readAsStringAsync(((FileSystem as any).documentDirectory || '') + 'projects/' + file);
       setCode(content);
     } catch (e) {
       Alert.alert('Error', 'Failed to load file');
@@ -50,7 +51,7 @@ export default function EditorScreen() {
     if (!filename && !newFile) return;
     const name = filename || 'untitled.js'; // TODO: Ask for filename if new
     try {
-      await FileSystem.writeAsStringAsync(FileSystem.documentDirectory + 'projects/' + name, code);
+      await FileSystem.writeAsStringAsync(((FileSystem as any).documentDirectory || '') + 'projects/' + name, code);
       Alert.alert('Success', 'File saved');
     } catch (e) {
       Alert.alert('Error', 'Failed to save file');
