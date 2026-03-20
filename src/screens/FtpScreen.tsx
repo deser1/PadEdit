@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert, ScrollView, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, Button, StyleSheet, Alert, ScrollView, TouchableOpacity, FlatList, ActivityIndicator, Switch } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Folder, FileCode, ArrowLeft, LogOut } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import JSFTP from 'jsftp';
+import SSHClient from '@dylankenneally/react-native-ssh-sftp';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Buffer } from 'buffer';
 
 export default function FtpScreen() {
@@ -11,12 +13,14 @@ export default function FtpScreen() {
   const [host, setHost] = useState('');
   const [user, setUser] = useState('');
   const [password, setPassword] = useState('');
+  const [isSftp, setIsSftp] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [logs, setLogs] = useState('Gotowy do połączenia...\n');
   const [currentPath, setCurrentPath] = useState('/');
   const [files, setFiles] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const ftpRef = useRef<any>(null);
+  const sftpRef = useRef<SSHClient | null>(null);
 
   // Wczytywanie zapisanych danych przy starcie
   useEffect(() => {
@@ -25,10 +29,12 @@ export default function FtpScreen() {
         const savedHost = await AsyncStorage.getItem('ftp_host');
         const savedUser = await AsyncStorage.getItem('ftp_user');
         const savedPassword = await AsyncStorage.getItem('ftp_password');
+        const savedIsSftp = await AsyncStorage.getItem('ftp_is_sftp');
         
         if (savedHost) setHost(savedHost);
         if (savedUser) setUser(savedUser);
         if (savedPassword) setPassword(savedPassword);
+        if (savedIsSftp) setIsSftp(savedIsSftp === 'true');
       } catch (error) {
         console.error('Błąd podczas wczytywania danych FTP:', error);
       }
@@ -100,52 +106,64 @@ export default function FtpScreen() {
       await AsyncStorage.setItem('ftp_host', host);
       await AsyncStorage.setItem('ftp_user', user);
       await AsyncStorage.setItem('ftp_password', password);
+      await AsyncStorage.setItem('ftp_is_sftp', isSftp.toString());
     } catch (error) {
       console.error('Błąd podczas zapisywania danych FTP:', error);
     }
 
     setIsLoading(true);
-    log(`Łączenie z ${host}...`);
+    log(`Łączenie z ${host} przez ${isSftp ? 'SFTP' : 'FTP'}...`);
     
     try {
-      const ftp = new JSFTP({
-        host: host,
-        user: user,
-        pass: password,
-        port: 21,
-      });
-
-      ftp.on('error', (err: any) => {
-        log(`Błąd FTP: ${err.message || err}`);
-        setIsLoading(false);
-      });
-
-      ftp.auth(user, password, (err: any) => {
-        if (err) {
-          log(`Błąd autoryzacji: ${err.message}`);
-          setIsLoading(false);
-          Alert.alert('Błąd połączenia', err.message);
-          return;
-        }
-
-        log('Połączono pomyślnie.');
+      if (isSftp) {
+        const client = await SSHClient.connectWithPassword(host, 22, user, password);
+        await client.connectSFTP();
+        log('Połączono pomyślnie przez SFTP.');
         setIsConnected(true);
-        ftpRef.current = ftp;
+        sftpRef.current = client;
         loadDirectory('/');
-      });
+      } else {
+        const ftp = new JSFTP({
+          host: host,
+          user: user,
+          pass: password,
+          port: 21,
+        });
 
+        ftp.on('error', (err: any) => {
+          log(`Błąd FTP: ${err.message || err}`);
+          setIsLoading(false);
+        });
+
+        ftp.auth(user, password, (err: any) => {
+          if (err) {
+            log(`Błąd autoryzacji: ${err.message}`);
+            setIsLoading(false);
+            Alert.alert('Błąd połączenia', err.message);
+            return;
+          }
+
+          log('Połączono pomyślnie przez FTP.');
+          setIsConnected(true);
+          ftpRef.current = ftp;
+          loadDirectory('/');
+        });
+      }
     } catch (err: any) {
       log(`Błąd krytyczny: ${err.message}`);
       setIsLoading(false);
-      Alert.alert('Błąd', 'Nie udało się zainicjować klienta FTP. Upewnij się, że używasz natywnego buildu.');
+      Alert.alert('Błąd', `Nie udało się zainicjować klienta ${isSftp ? 'SFTP' : 'FTP'}. ${err.message}`);
     }
   };
 
   const handleDisconnect = () => {
-    if (ftpRef.current) {
+    if (isSftp && sftpRef.current) {
+      sftpRef.current.disconnect();
+      sftpRef.current = null;
+    } else if (ftpRef.current) {
       try {
         ftpRef.current.raw('QUIT', (err: any, data: any) => {
-          log('Rozłączono z serwerem.');
+          log('Rozłączono z serwerem FTP.');
         });
         ftpRef.current.destroy();
       } catch (e) {}
@@ -157,41 +175,63 @@ export default function FtpScreen() {
     log('Rozłączono.');
   };
 
-  const loadDirectory = (path: string) => {
-    if (!ftpRef.current) return;
-    
+  const loadDirectory = async (path: string) => {
     setIsLoading(true);
     log(`Pobieranie listy plików dla ${path}...`);
     
-    ftpRef.current.ls(path, (err: any, res: any) => {
-      setIsLoading(false);
-      
-      if (err) {
-        log(`Błąd pobierania katalogu: ${err.message}`);
+    if (isSftp && sftpRef.current) {
+      try {
+        const res = await sftpRef.current.sftpLs(path);
+        setIsLoading(false);
+        setCurrentPath(path);
+        
+        const parsedFiles = res.map((file: any) => ({
+          name: file.filename,
+          type: file.isDirectory ? 'd' : '-',
+          size: file.fileSize
+        })).filter((f: any) => f.name !== '.' && f.name !== '..');
+        
+        parsedFiles.sort((a: any, b: any) => {
+          if (a.type === 'd' && b.type !== 'd') return -1;
+          if (a.type !== 'd' && b.type === 'd') return 1;
+          return a.name.localeCompare(b.name);
+        });
+        
+        setFiles(parsedFiles);
+        log(`Pobrano katalog ${path}. Znaleziono ${parsedFiles.length} elementów.`);
+      } catch (err: any) {
+        setIsLoading(false);
+        log(`Błąd pobierania katalogu SFTP: ${err.message}`);
         Alert.alert('Błąd', `Nie można odczytać katalogu: ${err.message}`);
-        return;
       }
-      
-      setCurrentPath(path);
-      
-      // jsftp zwraca tablicę obiektów z właściwościami typu name, type, itd.
-      // type: 0 to plik, 1 to katalog
-      const parsedFiles = res.map((file: any) => ({
-        name: file.name,
-        type: file.type === 1 ? 'd' : '-',
-        size: file.size
-      }));
-      
-      // Sortowanie: najpierw katalogi, potem pliki
-      parsedFiles.sort((a: any, b: any) => {
-        if (a.type === 'd' && b.type !== 'd') return -1;
-        if (a.type !== 'd' && b.type === 'd') return 1;
-        return a.name.localeCompare(b.name);
+    } else if (ftpRef.current) {
+      ftpRef.current.ls(path, (err: any, res: any) => {
+        setIsLoading(false);
+        
+        if (err) {
+          log(`Błąd pobierania katalogu: ${err.message}`);
+          Alert.alert('Błąd', `Nie można odczytać katalogu: ${err.message}`);
+          return;
+        }
+        
+        setCurrentPath(path);
+        
+        const parsedFiles = res.map((file: any) => ({
+          name: file.name,
+          type: file.type === 1 ? 'd' : '-',
+          size: file.size
+        }));
+        
+        parsedFiles.sort((a: any, b: any) => {
+          if (a.type === 'd' && b.type !== 'd') return -1;
+          if (a.type !== 'd' && b.type === 'd') return 1;
+          return a.name.localeCompare(b.name);
+        });
+        
+        setFiles(parsedFiles);
+        log(`Pobrano katalog ${path}. Znaleziono ${parsedFiles.length} elementów.`);
       });
-      
-      setFiles(parsedFiles);
-      log(`Pobrano katalog ${path}. Znaleziono ${parsedFiles.length} elementów.`);
-    });
+    }
   };
 
   const navigateUp = () => {
@@ -202,49 +242,66 @@ export default function FtpScreen() {
     loadDirectory(newPath);
   };
 
-  const handleFilePress = (file: any) => {
+  const handleFilePress = async (file: any) => {
     if (file.type === 'd') {
       const newPath = currentPath === '/' ? `/${file.name}` : `${currentPath}/${file.name}`;
       loadDirectory(newPath);
     } else {
-      if (!ftpRef.current) return;
+      if (!ftpRef.current && !sftpRef.current) return;
       
       const filePath = currentPath === '/' ? `/${file.name}` : `${currentPath}/${file.name}`;
       Alert.alert('Pobieranie', `Pobieranie pliku ${file.name}...`);
       setIsLoading(true);
       
-      let str = '';
-      ftpRef.current.get(filePath, (err: any, socket: any) => {
-        if (err) {
+      if (isSftp && sftpRef.current) {
+        try {
+          // Pobieramy jako plik tymczasowy, lub w react-native-ssh-sftp można podać ścieżkę lokalną
+          // Zakładamy, że funkcja sftpDownload zwraca tekst lub wymaga lokalnej ścieżki
+          const localPath = `${FileSystem.cacheDirectory}${file.name}`;
+          await sftpRef.current.sftpDownload(filePath, localPath);
+          const content = await FileSystem.readAsStringAsync(localPath);
+          
           setIsLoading(false);
+          log(`Pobrano plik ${file.name} (SFTP).`);
+          
+          navigation.navigate('Editor', { 
+            filename: file.name, 
+            newFile: true,
+          });
+        } catch (err: any) {
+          setIsLoading(false);
+          log(`Błąd pobierania SFTP: ${err.message}`);
           Alert.alert('Błąd', 'Nie można pobrać pliku.');
-          return;
         }
-
-        socket.on('data', (d: any) => {
-          str += d.toString();
-        });
-
-        socket.on('close', (err: any) => {
-          setIsLoading(false);
+      } else if (ftpRef.current) {
+        let str = '';
+        ftpRef.current.get(filePath, (err: any, socket: any) => {
           if (err) {
-            log('Błąd podczas zamykania połączenia transferu.');
-          } else {
-            log(`Pobrano plik ${file.name}.`);
-            // Tutaj normalnie zapisalibyśmy do lokalnego systemu plików
-            // i otworzyli w edytorze
-            navigation.navigate('Editor', { 
-              filename: file.name, 
-              newFile: true,
-              // TODO: Przekazywanie zawartości (wymagałoby dostosowania EditorScreen)
-              // W ramach dema przekażemy to przez stan lub parametry, ale Expo router
-              // może obcinać długie stringi. Najlepiej zapisać lokalnie.
-            });
+            setIsLoading(false);
+            Alert.alert('Błąd', 'Nie można pobrać pliku.');
+            return;
           }
+
+          socket.on('data', (d: any) => {
+            str += d.toString();
+          });
+
+          socket.on('close', (err: any) => {
+            setIsLoading(false);
+            if (err) {
+              log('Błąd podczas zamykania połączenia transferu.');
+            } else {
+              log(`Pobrano plik ${file.name}.`);
+              navigation.navigate('Editor', { 
+                filename: file.name, 
+                newFile: true,
+              });
+            }
+          });
+          
+          socket.resume();
         });
-        
-        socket.resume();
-      });
+      }
     }
   };
 
@@ -284,6 +341,10 @@ export default function FtpScreen() {
               value={password} 
               onChangeText={setPassword} 
             />
+            <View style={styles.switchContainer}>
+              <Text>Użyj SFTP (Port 22)</Text>
+              <Switch value={isSftp} onValueChange={setIsSftp} />
+            </View>
             <Button title={isLoading ? "Łączenie..." : "Połącz"} onPress={handleConnect} disabled={isLoading} />
           </View>
           <Text style={styles.logsHeader}>Logi operacji:</Text>
@@ -349,6 +410,13 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     borderRadius: 5,
     backgroundColor: '#f9f9f9',
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+    paddingHorizontal: 5,
   },
   logsHeader: {
     fontSize: 16,

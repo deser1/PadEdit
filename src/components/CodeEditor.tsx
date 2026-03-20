@@ -12,6 +12,7 @@ interface CodeEditorProps {
 export interface CodeEditorHandle {
   insertText: (text: string) => void;
   focus: () => void;
+  getSelectedText: () => Promise<string>;
 }
 
 const CodeEditor = React.forwardRef<CodeEditorHandle, CodeEditorProps>(({ initialCode, language, onChange, theme = 'vs-dark' }, ref) => {
@@ -156,6 +157,14 @@ const CodeEditor = React.forwardRef<CodeEditorHandle, CodeEditorProps>(({ initia
            window.editor.trigger('keyboard', 'type', {text: data.text});
            window.editor.focus();
          }
+         if (data.type === 'getSelection') {
+           const selection = window.editor.getSelection();
+           const selectedText = window.editor.getModel().getValueInRange(selection);
+           window.ReactNativeWebView.postMessage(JSON.stringify({
+             type: 'selectionResult',
+             content: selectedText
+           }));
+         }
        } catch (e) {
          // ignore
        }
@@ -186,11 +195,18 @@ const CodeEditor = React.forwardRef<CodeEditorHandle, CodeEditorProps>(({ initia
     }
   }, [theme]);
 
+  const selectionPromiseRef = useRef<((value: string) => void) | null>(null);
+
   const handleMessage = (event: any) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
       if (data.type === 'change') {
         onChange(data.content);
+      } else if (data.type === 'selectionResult') {
+        if (selectionPromiseRef.current) {
+          selectionPromiseRef.current(data.content);
+          selectionPromiseRef.current = null;
+        }
       }
     } catch (e) {
       console.error('Error parsing message from WebView', e);
@@ -217,9 +233,28 @@ const CodeEditor = React.forwardRef<CodeEditorHandle, CodeEditorProps>(({ initia
     }
   };
 
+  const getSelectedText = (): Promise<string> => {
+    return new Promise((resolve) => {
+      selectionPromiseRef.current = resolve;
+      if (webViewRef.current) {
+        webViewRef.current.postMessage(JSON.stringify({ type: 'getSelection' }));
+      } else {
+        resolve('');
+      }
+      // Timeout zapobiegający zablokowaniu Promise
+      setTimeout(() => {
+        if (selectionPromiseRef.current) {
+          selectionPromiseRef.current('');
+          selectionPromiseRef.current = null;
+        }
+      }, 1000);
+    });
+  };
+
   React.useImperativeHandle(ref, () => ({
     insertText,
-    focus
+    focus,
+    getSelectedText
   }));
 
   return (
