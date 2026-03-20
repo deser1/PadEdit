@@ -1,0 +1,38 @@
+diff --git a/node_modules/@dylankenneally/react-native-ssh-sftp/android/build.gradle b/node_modules/@dylankenneally/react-native-ssh-sftp/android/build.gradle
+index c1b0818..e7a81ec 100644
+--- a/node_modules/@dylankenneally/react-native-ssh-sftp/android/build.gradle
++++ b/node_modules/@dylankenneally/react-native-ssh-sftp/android/build.gradle
+@@ -1,7 +1,6 @@
+-
+ buildscript {
+     repositories {
+-        jcenter()
++        mavenCentral()
+         google()
+     }
+ 
+@@ -11,8 +10,8 @@ buildscript {
+ }
+ 
+ apply plugin: 'com.android.library'
+-
+ android {
++    namespace "me.dylankenneally.rnssh"
+     compileSdkVersion 34
+     buildToolsVersion "34.0.0"
+ 
+@@ -29,13 +28,12 @@ android {
+ 
+ repositories {
+     mavenCentral()
+-    jcenter()
+ }
+ 
+ dependencies {
+     implementation 'org.bouncycastle:bcprov-jdk15on:1.70'
+ 
+-    api 'com.facebook.react:react-native:+'
++    implementation 'com.facebook.react:react-native'
+     api 'com.github.mwiede:jsch:0.2.17'
+     api 'com.fasterxml.jackson.core:jackson-core:2.10.3'
+     api 'com.fasterxml.jackson.core:jackson-databind:2.10.3'
