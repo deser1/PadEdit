@@ -64,6 +64,12 @@ export default function SettingsScreen() {
               color={aiProvider === 'anthropic' ? '#007bff' : '#ccc'} 
               onPress={() => setAiProvider('anthropic')} 
             />
+            <View style={{ width: 10 }} />
+            <Button 
+              title="Gemini" 
+              color={aiProvider === 'gemini' ? '#007bff' : '#ccc'} 
+              onPress={() => setAiProvider('gemini')} 
+            />
           </View>
 
           <Text style={[styles.label, { marginTop: 15 }]}>Klucz API</Text>
