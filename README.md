@@ -41,6 +41,24 @@ npx expo run:android
 npx expo run:ios
 ```
 
+### 🗄️ Uruchomienie serwera API (dla klienta baz danych)
+Ponieważ urządzenia mobilne nie powinny (i w React Native z racji braków natywnych bibliotek Node nie potrafią) łączyć się bezpośrednio do portów TCP baz danych (np. MySQL 3306), przygotowany został lekki serwer pośredniczący (Proxy) w technologii Node.js/Express.
+
+Aby aplikacja mogła połączyć się z bazami MySQL, MS SQL lub Oracle:
+1. Przejdź do folderu `server-api`:
+```bash
+cd server-api
+```
+2. Zainstaluj paczki dla serwera:
+```bash
+npm install
+```
+3. Uruchom serwer na komputerze lokalnym lub własnym VPS:
+```bash
+node index.js
+```
+Serwer domyślnie uruchomi się na porcie `3000`. Pamiętaj, aby w aplikacji w widoku logowania do bazy danych, wejść w ustawienia (ikona trybika) i wpisać poprawne IP komputera uruchamiającego ten serwer (np. `http://192.168.x.x:3000`).
+
 ## 📝 Planowany rozwój (Roadmap)
 - [x] Implementacja protokołu SFTP (Secure FTP).
 - [x] Rozbudowa obsługi wielu kart (zakładek) dla otwartych plików.

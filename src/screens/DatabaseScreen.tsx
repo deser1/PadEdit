@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LogOut, Play } from 'lucide-react-native';
+import { LogOut, Play, Settings as SettingsIcon } from 'lucide-react-native';
+import axios from 'axios';
 
 export default function DatabaseScreen() {
   const [dbType, setDbType] = useState<'mysql' | 'mssql' | 'oracle'>('mysql');
@@ -10,6 +11,8 @@ export default function DatabaseScreen() {
   const [user, setUser] = useState('');
   const [password, setPassword] = useState('');
   const [database, setDatabase] = useState('');
+  const [apiUrl, setApiUrl] = useState('http://192.168.1.100:3000'); // Domyślny lokalny adres API
+  const [showSettings, setShowSettings] = useState(false);
   
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -25,14 +28,16 @@ export default function DatabaseScreen() {
         const savedPort = await AsyncStorage.getItem('db_port');
         const savedUser = await AsyncStorage.getItem('db_user');
         const savedPassword = await AsyncStorage.getItem('db_password');
-        const savedDb = await AsyncStorage.getItem('db_database');
+        const savedDatabase = await AsyncStorage.getItem('db_database');
+        const savedApiUrl = await AsyncStorage.getItem('db_api_url');
         
         if (savedType) setDbType(savedType);
         if (savedHost) setHost(savedHost);
         if (savedPort) setPort(savedPort);
         if (savedUser) setUser(savedUser);
         if (savedPassword) setPassword(savedPassword);
-        if (savedDb) setDatabase(savedDb);
+        if (savedDatabase) setDatabase(savedDatabase);
+        if (savedApiUrl) setApiUrl(savedApiUrl);
       } catch (error) {}
     };
     loadCredentials();
@@ -51,25 +56,30 @@ export default function DatabaseScreen() {
       await AsyncStorage.setItem('db_user', user);
       await AsyncStorage.setItem('db_password', password);
       await AsyncStorage.setItem('db_database', database);
+      await AsyncStorage.setItem('db_api_url', apiUrl);
     } catch (error) {}
 
     setIsLoading(true);
     setErrorMsg('');
     
-    // W środowisku React Native bezpośrednie połączenie z MySQL/MSSQL/Oracle za pomocą protokołów TCP (bez backendu pośredniczącego)
-    // jest bardzo problematyczne ze względu na brak natywnych bibliotek Node.js takich jak 'net', 'tls', 'crypto'.
-    // Istnieją protezy (jak react-native-tcp-socket), jednak sterowniki bazodanowe takie jak 'mysql2' czy 'mssql'
-    // często wykorzystują zaawansowane funkcje Node.js, których nie da się łatwo z-polyfill-ować.
-    
-    // Z tego powodu w aplikacjach mobilnych najlepszą praktyką jest wystawienie API (np. REST lub GraphQL) po stronie serwera.
-    
-    // Na potrzeby wizualizacji interfejsu (Mock) symulujemy poprawne połączenie:
-    setTimeout(() => {
-      setIsConnected(true);
+    try {
+      const response = await axios.post(`${apiUrl}/api/test-connection`, {
+        type: dbType,
+        host,
+        port,
+        user,
+        password,
+        database
+      });
+
+      if (response.data.success) {
+        setIsConnected(true);
+      }
+    } catch (error: any) {
+      Alert.alert('Błąd połączenia', error.response?.data?.error || error.message);
+    } finally {
       setIsLoading(false);
-      Alert.alert('Info', 'Ze względu na ograniczenia środowiska mobilnego, bezpośrednie połączenie TCP z relacyjną bazą danych z poziomu aplikacji klienckiej jest zablokowane ze względów bezpieczeństwa i architektonicznych. \n\nW prawdziwej aplikacji należy przygotować API (np. REST w Node.js/PHP), które komunikuje się z bazą i zwraca dane do telefonu w formacie JSON.');
-      setResults([{ id: 1, name: 'Jan Kowalski', email: 'jan@example.com' }, { id: 2, name: 'Anna Nowak', email: 'anna@example.com' }]);
-    }, 1500);
+    }
   };
 
   const handleDisconnect = () => {
@@ -79,24 +89,31 @@ export default function DatabaseScreen() {
     setErrorMsg('');
   };
 
-  const executeQuery = () => {
+  const executeQuery = async () => {
     if (!query.trim()) return;
     setIsLoading(true);
+    setErrorMsg('');
     
-    // Symulacja wykonania zapytania
-    setTimeout(() => {
-      setIsLoading(false);
-      if (query.toLowerCase().includes('error')) {
-        setErrorMsg('Syntax error in SQL statement.');
-        setResults(null);
-      } else {
-        setErrorMsg('');
-        setResults([
-          { id: 101, result: 'Mocked Data 1', value: Math.random().toFixed(2) },
-          { id: 102, result: 'Mocked Data 2', value: Math.random().toFixed(2) }
-        ]);
+    try {
+      const response = await axios.post(`${apiUrl}/api/query`, {
+        type: dbType,
+        host,
+        port,
+        user,
+        password,
+        database,
+        query
+      });
+
+      if (response.data.success) {
+        setResults(response.data.data);
       }
-    }, 800);
+    } catch (error: any) {
+      setErrorMsg(error.response?.data?.error || error.message);
+      setResults(null);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const renderTable = () => {
@@ -128,8 +145,28 @@ export default function DatabaseScreen() {
     <View style={styles.container}>
       {!isConnected ? (
         <ScrollView contentContainerStyle={styles.formContainer}>
-          <Text style={styles.title}>Klient Bazy Danych</Text>
+          <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20}}>
+            <Text style={[styles.title, {marginBottom: 0}]}>Klient Bazy Danych</Text>
+            <TouchableOpacity onPress={() => setShowSettings(!showSettings)}>
+              <SettingsIcon color="#007bff" size={24} />
+            </TouchableOpacity>
+          </View>
           
+          {showSettings && (
+            <View style={styles.settingsBox}>
+              <Text style={{fontWeight: 'bold', marginBottom: 5}}>Adres API Proxy:</Text>
+              <TextInput 
+                style={styles.input} 
+                value={apiUrl} 
+                onChangeText={setApiUrl} 
+                placeholder="http://twój-adres-ip:3000" 
+              />
+              <Text style={{fontSize: 12, color: '#666'}}>
+                Ze względów architektonicznych i bezpieczeństwa urządzenia mobilne nie łączą się bezpośrednio z portami baz danych TCP. Wymagany jest uruchomiony skrypt Node.js API.
+              </Text>
+            </View>
+          )}
+
           <View style={styles.typeSelector}>
             {(['mysql', 'mssql', 'oracle'] as const).map(type => (
               <TouchableOpacity 
@@ -206,6 +243,7 @@ const styles = StyleSheet.create({
   typeButtonActive: { backgroundColor: '#007bff' },
   typeText: { color: '#007bff', fontWeight: 'bold' },
   typeTextActive: { color: '#fff' },
+  settingsBox: { backgroundColor: '#f0f0f0', padding: 15, borderRadius: 5, marginBottom: 20, borderWidth: 1, borderColor: '#ddd' },
   input: { borderWidth: 1, borderColor: '#ccc', padding: 12, marginBottom: 15, borderRadius: 5, backgroundColor: '#f9f9f9' },
   dbContainer: { flex: 1, backgroundColor: '#f0f2f5' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#34495e', padding: 10 },
