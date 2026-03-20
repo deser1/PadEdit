@@ -12,18 +12,90 @@ index 61c565b..9c83247 100644
          throw new GradleException("[Worklets] Worklets require new architecture to be enabled. Please enable it by setting `newArchEnabled` to `true` in `gradle.properties`.")
      }
 diff --git a/node_modules/react-native-worklets/android/src/legacyBundling/com/swmansion/worklets/WorkletsModule.java b/node_modules/react-native-worklets/android/src/legacyBundling/com/swmansion/worklets/WorkletsModule.java
-index 3c83e00..89e0271 100644
+index 3c83e00..4516213 100644
 --- a/node_modules/react-native-worklets/android/src/legacyBundling/com/swmansion/worklets/WorkletsModule.java
 +++ b/node_modules/react-native-worklets/android/src/legacyBundling/com/swmansion/worklets/WorkletsModule.java
-@@ -19,6 +19,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
+@@ -5,6 +5,7 @@ import com.facebook.jni.HybridData;
+ import com.facebook.proguard.annotations.DoNotStrip;
+ import com.facebook.react.bridge.LifecycleEventListener;
+ import com.facebook.react.bridge.ReactApplicationContext;
++import com.facebook.react.bridge.ReactContextBaseJavaModule;
+ import com.facebook.react.bridge.ReactMethod;
+ import com.facebook.react.bridge.queue.MessageQueueThread;
+ import com.facebook.react.common.annotations.FrameworkAPI;
+@@ -18,7 +19,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
+ 
  @SuppressWarnings("JavaJniMissingFunction")
  @ReactModule(name = WorkletsModule.NAME)
- public class WorkletsModule extends NativeWorkletsModuleSpec implements LifecycleEventListener {
+-public class WorkletsModule extends NativeWorkletsModuleSpec implements LifecycleEventListener {
++public class WorkletsModule extends ReactContextBaseJavaModule implements LifecycleEventListener {
 +  public static final String NAME = "Worklets";
++
++  @Override
++  public String getName() {
++    return NAME;
++  }
 +
    static {
      SoLoader.loadLibrary("worklets");
    }
+@@ -38,7 +46,8 @@ public class WorkletsModule extends NativeWorkletsModuleSpec implements Lifecycl
+   private boolean mSlowAnimationsEnabled;
+ 
+   /**
+-   * Invalidating concurrently could be fatal. It shouldn't happen in a normal flow, but it doesn't
++   * Invalidating concurrently could be fatal. It shouldn't happen in a normal
++   * flow, but it doesn't
+    * cost us much to add synchronization for extra safety.
+    */
+   private final AtomicBoolean mInvalidated = new AtomicBoolean(false);
+@@ -50,8 +59,11 @@ public class WorkletsModule extends NativeWorkletsModuleSpec implements Lifecycl
+       CallInvokerHolderImpl jsCallInvokerHolder,
+       AndroidUIScheduler androidUIScheduler);
+ 
++  private ReactApplicationContext mReactContext;
++
+   public WorkletsModule(ReactApplicationContext reactContext) {
+     super(reactContext);
++    mReactContext = reactContext;
+ 
+     reactContext.assertOnJSQueueThread();
+ 
+@@ -62,15 +74,14 @@ public class WorkletsModule extends NativeWorkletsModuleSpec implements Lifecycl
+   @OptIn(markerClass = FrameworkAPI.class)
+   @ReactMethod(isBlockingSynchronousMethod = true)
+   public boolean installTurboModule() {
+-    var context = getReactApplicationContext();
++    var context = mReactContext;
+ 
+     context.assertOnJSQueueThread();
+ 
+     var jsContext = Objects.requireNonNull(context.getJavaScriptContextHolder()).get();
+     var jsCallInvokerHolder = JSCallInvokerResolver.getJSCallInvokerHolder(context);
+ 
+-    mHybridData =
+-        initHybrid(jsContext, mMessageQueueThread, jsCallInvokerHolder, mAndroidUIScheduler);
++    mHybridData = initHybrid(jsContext, mMessageQueueThread, jsCallInvokerHolder, mAndroidUIScheduler);
+     return true;
+   }
+ 
+@@ -83,7 +94,7 @@ public class WorkletsModule extends NativeWorkletsModuleSpec implements Lifecycl
+    */
+   @DoNotStrip
+   public boolean isOnJSQueueThread() {
+-    return getReactApplicationContext().isOnJSQueueThread();
++    return mReactContext.isOnJSQueueThread();
+   }
+ 
+   public void toggleSlowAnimations() {
+@@ -118,5 +129,6 @@ public class WorkletsModule extends NativeWorkletsModuleSpec implements Lifecycl
+   }
+ 
+   @Override
+-  public void onHostDestroy() {}
++  public void onHostDestroy() {
++  }
+ }
 diff --git a/node_modules/react-native-worklets/android/src/main/java/com/swmansion/worklets/WorkletsPackage.java b/node_modules/react-native-worklets/android/src/main/java/com/swmansion/worklets/WorkletsPackage.java
 index 78a6e63..13182c5 100644
 --- a/node_modules/react-native-worklets/android/src/main/java/com/swmansion/worklets/WorkletsPackage.java
