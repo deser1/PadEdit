@@ -42,7 +42,9 @@ npx expo run:ios
 ```
 
 ## 📝 Planowany rozwój (Roadmap)
-- [ ] Implementacja protokołu SFTP (Secure FTP).
-- [ ] Rozbudowa obsługi wielu kart (zakładek) dla otwartych plików.
-- [ ] Połączenie asystenta AI z prawdziwym API (np. OpenAI / Anthropic).
-- [ ] Emulacja prostego terminala do uruchamiania skryptów Node.js / Python lokalnie.
+- [x] Implementacja protokołu SFTP (Secure FTP).
+- [x] Rozbudowa obsługi wielu kart (zakładek) dla otwartych plików.
+- [x] Połączenie asystenta AI z prawdziwym API (OpenAI, Anthropic, Gemini).
+- [x] Emulacja prostego terminala do uruchamiania skryptów Node.js / Python lokalnie.
+- [ ] Wsparcie dla zdalnego wykonywania kodu (SSH Terminal).
+- [ ] Rozbudowa opcji zarządzania wieloma projektami (Workspace).
