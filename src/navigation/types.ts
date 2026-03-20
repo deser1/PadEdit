@@ -3,10 +3,11 @@ import { RouteProp } from '@react-navigation/native';
 
 export type RootStackParamList = {
   Home: undefined;
-  Editor: { filename?: string; newFile?: boolean };
+  Editor: { filename?: string; newFile?: boolean; workspace?: string };
   Git: undefined;
   Ftp: undefined;
   Settings: undefined;
+  SshTerminal: undefined;
 };
 
 export type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;

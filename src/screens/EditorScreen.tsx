@@ -19,7 +19,8 @@ interface OpenFile {
 export default function EditorScreen() {
   const route = useRoute<EditorScreenRouteProp>();
   const navigation = useNavigation<EditorScreenNavigationProp>();
-  const { filename: routeFilename, newFile } = route.params || {};
+  const { filename: routeFilename, newFile, workspace } = route.params || {};
+  const currentWorkspace = workspace || 'projects';
   
   const [openFiles, setOpenFiles] = useState<OpenFile[]>([]);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -55,7 +56,7 @@ export default function EditorScreen() {
 
   const loadFile = async (file: string) => {
     try {
-      const content = await FileSystem.readAsStringAsync((FileSystem.documentDirectory || '') + 'projects/' + file);
+      const content = await FileSystem.readAsStringAsync((FileSystem.documentDirectory || '') + currentWorkspace + '/' + file);
       const lang = detectLanguage(file, content);
       
       setOpenFiles(prev => {
@@ -151,7 +152,7 @@ export default function EditorScreen() {
             text: 'Nadpisz', 
             onPress: async () => {
               try {
-                await FileSystem.writeAsStringAsync((FileSystem.documentDirectory || '') + 'projects/' + activeFile.filename, activeFile.content);
+                await FileSystem.writeAsStringAsync((FileSystem.documentDirectory || '') + currentWorkspace + '/' + activeFile.filename, activeFile.content);
                 Alert.alert('Sukces', 'Plik został nadpisany');
               } catch (e) {
                 Alert.alert('Błąd', 'Nie udało się zapisać pliku');
@@ -170,13 +171,13 @@ export default function EditorScreen() {
     if (!activeFile) return;
     setIsSaveModalVisible(false);
     try {
-      await FileSystem.writeAsStringAsync((FileSystem.documentDirectory || '') + 'projects/' + newFilename, activeFile.content);
+      await FileSystem.writeAsStringAsync((FileSystem.documentDirectory || '') + currentWorkspace + '/' + newFilename, activeFile.content);
       setOpenFiles(prev => {
         const newFiles = [...prev];
         newFiles[activeIndex] = { ...newFiles[activeIndex], filename: newFilename, language: detectLanguage(newFilename, activeFile.content) };
         return newFiles;
       });
-      Alert.alert('Sukces', 'Plik zapisany w projektach aplikacji');
+      Alert.alert('Sukces', `Plik zapisany w ${currentWorkspace}`);
     } catch (e) {
       Alert.alert('Błąd', 'Nie udało się zapisać pliku');
     }
@@ -509,7 +510,7 @@ Based on the user's prompt, output ONLY the raw code that should be appended or 
             />
             <View style={{ flexDirection: 'column', gap: 10 }}>
               <TouchableOpacity onPress={handleSaveToProjects} style={[styles.generateButton, { backgroundColor: '#28a745' }]}>
-                <Text style={{color: 'white', textAlign: 'center'}}>Zapisz w projektach aplikacji</Text>
+                <Text style={{color: 'white', textAlign: 'center'}}>Zapisz w {currentWorkspace}</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleSaveToDevice} style={[styles.generateButton, { backgroundColor: '#007bff' }]}>
                 <Text style={{color: 'white', textAlign: 'center'}}>Wybierz folder w telefonie</Text>

@@ -46,5 +46,7 @@ npx expo run:ios
 - [x] Rozbudowa obsługi wielu kart (zakładek) dla otwartych plików.
 - [x] Połączenie asystenta AI z prawdziwym API (OpenAI, Anthropic, Gemini).
 - [x] Emulacja prostego terminala do uruchamiania skryptów Node.js / Python lokalnie.
-- [ ] Wsparcie dla zdalnego wykonywania kodu (SSH Terminal).
-- [ ] Rozbudowa opcji zarządzania wieloma projektami (Workspace).
+- [x] Wsparcie dla zdalnego wykonywania kodu (SSH Terminal).
+- [x] Rozbudowa opcji zarządzania wieloma projektami (Workspace).
+- [ ] Rozbudowa terminala SSH o pełną obsługę interaktywnych programów (np. htop, vim).
+- [ ] Obsługa systemowego schowka i Drag&Drop w edytorze.
