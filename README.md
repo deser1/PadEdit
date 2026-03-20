@@ -1,6 +1,6 @@
 # 📱 PadEdit - Ultimate Mobile Code Editor
 
-[![Android Build](https://github.com/deser1/PadEdit/actions/workflows/android-build.yml/badge.svg)](https://github.com/deser1/PadEdit/actions/workflows/android-build.yml)
+[![Android Build](https://img.shields.io/github/actions/workflow/status/deser1/PadEdit/android-build.yml?style=for-the-badge&logo=android&logoColor=white&label=Android%20Build&color=3DDC84)](https://github.com/deser1/PadEdit/actions)
 
 **PadEdit** to potężny, wieloplatformowy edytor kodu na urządzenia z systemem Android i iOS. Został zaprojektowany z myślą o programistach, którzy potrzebują elastycznego narzędzia do pisania, edytowania i zarządzania kodem bezpośrednio ze swojego smartfona lub tabletu.
 
