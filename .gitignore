@@ -21,14 +21,24 @@ expo-env.d.ts
 # Metro
 .metro-health-check*
 
-# debug
+# Debug and Logs
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+*.log
+log*.txt
+build_log.html
+fix-gradle*.js
 
 # macOS
 .DS_Store
 *.pem
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.swp
+*.swo
 
 # local env files
 .env*.local
