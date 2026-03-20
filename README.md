@@ -102,6 +102,13 @@ eas build:configure
 
 *(Alternatywnie, jeśli posiadasz skonfigurowane Android Studio lub Xcode, możesz użyć komend lokalnych: `npx expo run:android --variant release` lub `npx expo run:ios --configuration Release`).*
 
+### 🛠️ Rozwiązywanie problemów z budowaniem (Troubleshooting)
+W nowoczesnych wersjach Expo (SDK 52+) i React Native (0.76+) domyślnie włączona jest Nowa Architektura (New Architecture). Niektóre starsze moduły natywne (np. `react-native-ssh-sftp`) mogą nie być z nią w pełni kompatybilne i powodować błędy Gradle (np. `Gradle build failed with unknown error`). 
+
+W tym projekcie zastosowano następujące rozwiązania, aby zminimalizować te problemy:
+1. **Wyłączenie Nowej Architektury:** W pliku `app.json` ustawiono flagę `"newArchEnabled": false`.
+2. **Łatki (Patches):** Używamy biblioteki `patch-package`, aby w locie łatać stare pliki `build.gradle` z paczek (m.in. usuwając martwe repozytorium `jcenter()`, dodając wymaganą przestrzeń nazw `namespace` i aktualizując metodę importu React Native). Zmiany te nakładane są automatycznie przy użyciu komendy `npm install` na podstawie plików z folderu `patches/`. W przypadku błędów kompilacji, upewnij się, że proces `postinstall` z `patch-package` zakończył się sukcesem.
+
 ## 📝 Planowany rozwój (Roadmap)
 - [x] Implementacja protokołu SFTP (Secure FTP).
 - [x] Rozbudowa obsługi wielu kart (zakładek) dla otwartych plików.
