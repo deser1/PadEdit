@@ -9,6 +9,8 @@ config.resolver.extraNodeModules = {
   events: require.resolve('events'),
   path: require.resolve('path-browserify'),
   util: require.resolve('util'),
+  net: require.resolve('react-native-tcp-socket'),
+  tls: require.resolve('react-native-tcp-socket'),
 };
 
 module.exports = config;

@@ -1,9 +1,9 @@
 import git from 'isomorphic-git';
 import http from 'isomorphic-git/http/web';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import fs from '../utils/expoFsAdapter';
 
-const DIR = ((FileSystem as any).documentDirectory || '') + 'projects/repo';
+const DIR = (FileSystem.documentDirectory || '') + 'projects/repo';
 
 export const initRepo = async () => {
   await git.init({ fs, dir: DIR });

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 interface CodeEditorProps {
@@ -9,11 +9,16 @@ interface CodeEditorProps {
   theme?: 'vs-dark' | 'vs-light';
 }
 
-const CodeEditor: React.FC<CodeEditorProps> = ({ initialCode, language, onChange, theme = 'vs-dark' }) => {
+export interface CodeEditorHandle {
+  insertText: (text: string) => void;
+  focus: () => void;
+}
+
+const CodeEditor = React.forwardRef<CodeEditorHandle, CodeEditorProps>(({ initialCode, language, onChange, theme = 'vs-dark' }, ref) => {
   const webViewRef = useRef<WebView>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  const htmlContent = `
+  const htmlContent = React.useMemo(() => `
 <!DOCTYPE html>
 <html>
 <head>
@@ -34,14 +39,92 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ initialCode, language, onChange
         language: '${language}',
         theme: '${theme}',
         automaticLayout: true,
-        minimap: { enabled: false }
+        minimap: { enabled: false },
+        wordWrap: 'on',
+        readOnly: false,
+        domReadOnly: false,
+        scrollbar: {
+          useShadows: false,
+          verticalHasArrows: false,
+          horizontalHasArrows: false,
+          vertical: 'visible',
+          horizontal: 'hidden',
+        },
+        fontFamily: 'monospace',
+        fontSize: 14,
+        lineHeight: 20,
+        // Disable accessibilitySupport as it creates a hidden textarea that 
+        // completely breaks mobile composition (Gboard).
+        accessibilitySupport: 'off',
+        // Disable features that fight with mobile keyboards
+        suggestOnTriggerCharacters: false,
+        acceptSuggestionOnEnter: 'off',
+        quickSuggestions: false,
+        lightbulb: { enabled: false }
       });
 
-      window.editor.onDidChangeModelContent(function() {
-        window.ReactNativeWebView.postMessage(JSON.stringify({
-          type: 'change',
-          content: window.editor.getValue()
-        }));
+      const container = document.getElementById('container');
+      
+      const style = document.createElement('style');
+      style.innerHTML = \`
+        /* Reset all hacks */
+        .monaco-editor .inputarea {
+            background: transparent !important;
+            color: transparent !important;
+        }
+      \`;
+      document.head.appendChild(style);
+
+      // The core issue on Android is that the virtual keyboard (IME) 
+      // sends composition events instead of raw key strokes.
+      // Monaco's internal input handler gets confused and places the cursor incorrectly.
+      // We must disable native autocorrect/composition at the DOM level.
+      const fixMobileKeyboard = () => {
+        const textareas = document.querySelectorAll('textarea');
+        textareas.forEach(textarea => {
+           // These attributes are CRITICAL to stop Gboard from buffering input
+           textarea.setAttribute('autocomplete', 'off');
+           textarea.setAttribute('autocorrect', 'off');
+           textarea.setAttribute('autocapitalize', 'off');
+           textarea.setAttribute('spellcheck', 'false');
+           // inputmode="none" or "email" sometimes bypasses composition better than "text"
+           textarea.setAttribute('inputmode', 'email'); 
+           textarea.setAttribute('data-gramm', 'false');
+           textarea.removeAttribute('readonly');
+           
+           // Remove the previous event listeners that caused cursor jumping
+           const newTextarea = textarea.cloneNode(true);
+           textarea.parentNode.replaceChild(newTextarea, textarea);
+        });
+      };
+
+      window.editor.onDidLayoutChange(fixMobileKeyboard);
+      setTimeout(fixMobileKeyboard, 500);
+
+      container.addEventListener('touchend', function(e) {
+         const textarea = container.querySelector('textarea');
+         if (textarea) {
+             textarea.focus();
+             textarea.click();
+         }
+      }, false);
+      
+      // Auto-focus on load
+      setTimeout(() => {
+        window.editor.focus();
+      }, 500);
+
+      // Debounce model changes
+      let timeoutId;
+      window.editor.onDidChangeModelContent(function(e) {
+        clearTimeout(timeoutId);
+        
+        timeoutId = setTimeout(() => {
+          window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: 'change',
+            content: window.editor.getValue()
+          }));
+        }, 100);
       });
     });
 
@@ -69,6 +152,10 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ initialCode, language, onChange
          if (data.type === 'setTheme') {
            monaco.editor.setTheme(data.theme);
          }
+         if (data.type === 'insertText') {
+           window.editor.trigger('keyboard', 'type', {text: data.text});
+           window.editor.focus();
+         }
        } catch (e) {
          // ignore
        }
@@ -76,7 +163,16 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ initialCode, language, onChange
   </script>
 </body>
 </html>
-`;
+`, []); // Empty dependency array to prevent reload on prop change
+
+  useEffect(() => {
+    if (webViewRef.current && initialCode) {
+      // Use setTimeout to ensure WebView has processed the initial HTML
+      setTimeout(() => {
+        webViewRef.current?.postMessage(JSON.stringify({ type: 'setValue', value: initialCode }));
+      }, 100);
+    }
+  }, [initialCode]);
 
   useEffect(() => {
     if (webViewRef.current) {
@@ -101,6 +197,31 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ initialCode, language, onChange
     }
   };
 
+  const insertText = (text: string) => {
+    if (webViewRef.current) {
+      webViewRef.current.postMessage(JSON.stringify({ type: 'insertText', text }));
+    }
+  };
+
+  const focus = () => {
+    if (webViewRef.current) {
+      // Inject JS to force focus
+      webViewRef.current.injectJavaScript(`
+        if (window.editor) {
+           window.editor.focus();
+           const textarea = document.querySelector('textarea');
+           if (textarea) textarea.focus();
+        }
+        true;
+      `);
+    }
+  };
+
+  React.useImperativeHandle(ref, () => ({
+    insertText,
+    focus
+  }));
+
   return (
     <View style={styles.container}>
       <WebView
@@ -112,10 +233,22 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ initialCode, language, onChange
         startInLoadingState={true}
         renderLoading={() => <ActivityIndicator size="large" color="#0000ff" />}
         originWhitelist={['*']}
+        keyboardDisplayRequiresUserAction={false}
+        // Enable scrolling to help with input field detection
+        scrollEnabled={true}
+        bounces={false}
+        overScrollMode="never"
+        textZoom={100}
+        // Android specific
+        onLoadEnd={() => {
+          if (Platform.OS === 'android') {
+             webViewRef.current?.injectJavaScript('if(document.querySelector("textarea")) document.querySelector("textarea").focus(); true;');
+          }
+        }}
       />
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

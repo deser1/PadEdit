@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert, Modal, TextInput } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, StyleSheet, TouchableOpacity, Text, Alert, Modal, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import * as FileSystem from 'expo-file-system';
-import CodeEditor from '../components/CodeEditor';
-import { Save, GitBranch, Terminal, Settings } from 'lucide-react-native';
+import * as FileSystem from 'expo-file-system/legacy';
+import CodeEditor, { CodeEditorHandle } from '../components/CodeEditor';
+import { Save, GitBranch, Terminal, Settings, Keyboard } from 'lucide-react-native';
 import { EditorScreenRouteProp, EditorScreenNavigationProp } from '../navigation/types';
+import hljs from 'highlight.js';
 
 export default function EditorScreen() {
   const route = useRoute<EditorScreenRouteProp>();
@@ -15,43 +16,89 @@ export default function EditorScreen() {
   const [theme, setTheme] = useState<'vs-dark' | 'vs-light'>('vs-dark');
   const [isAiModalVisible, setIsAiModalVisible] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
+  const editorRef = useRef<CodeEditorHandle>(null);
+
+  const keyboardSymbols = ['Tab', '{', '}', '(', ')', '[', ']', '<', '>', ';', ':', "'", '"', '=', '+', '-', '*', '/', '\\', '|', '&', '!', '$', '#', '@', '%', '^', '_'];
 
   useEffect(() => {
     if (filename) {
       loadFile(filename);
-      detectLanguage(filename);
+    } else {
+      setCode('// Write your code here...');
+      setLanguage('javascript');
     }
   }, [filename]);
 
   const loadFile = async (file: string) => {
     try {
-      const content = await FileSystem.readAsStringAsync(((FileSystem as any).documentDirectory || '') + 'projects/' + file);
+      const content = await FileSystem.readAsStringAsync((FileSystem.documentDirectory || '') + 'projects/' + file);
       setCode(content);
+      detectLanguage(file, content);
+      
+      // Force update to editor after a short delay to ensure WebView is ready
+      setTimeout(() => {
+        editorRef.current?.insertText(''); // Trigger a non-destructive change to wake up the editor
+      }, 500);
     } catch (e) {
       Alert.alert('Error', 'Failed to load file');
     }
   };
 
-  const detectLanguage = (file: string) => {
-    const ext = file.split('.').pop();
+  const detectLanguage = (file: string, fileContent?: string) => {
+    // 1. Try to detect by extension first (fastest and usually most accurate)
+    const ext = file.split('.').pop()?.toLowerCase();
+    
+    let detectedLang = 'plaintext';
     switch (ext) {
-      case 'js': setLanguage('javascript'); break;
-      case 'ts': setLanguage('typescript'); break;
-      case 'py': setLanguage('python'); break;
-      case 'html': setLanguage('html'); break;
-      case 'css': setLanguage('css'); break;
-      case 'json': setLanguage('json'); break;
-      case 'java': setLanguage('java'); break;
-      case 'cpp': setLanguage('cpp'); break;
-      default: setLanguage('plaintext');
+      case 'js': detectedLang = 'javascript'; break;
+      case 'ts': detectedLang = 'typescript'; break;
+      case 'jsx': detectedLang = 'javascript'; break;
+      case 'tsx': detectedLang = 'typescript'; break;
+      case 'py': detectedLang = 'python'; break;
+      case 'html': detectedLang = 'html'; break;
+      case 'css': detectedLang = 'css'; break;
+      case 'json': detectedLang = 'json'; break;
+      case 'java': detectedLang = 'java'; break;
+      case 'cpp': case 'cc': case 'c': detectedLang = 'cpp'; break;
+      case 'cs': detectedLang = 'csharp'; break;
+      case 'php': detectedLang = 'php'; break;
+      case 'rb': detectedLang = 'php'; break;
+      case 'go': detectedLang = 'go'; break;
+      case 'rs': detectedLang = 'rust'; break;
+      case 'sql': detectedLang = 'sql'; break;
+      case 'xml': detectedLang = 'xml'; break;
+      case 'md': detectedLang = 'markdown'; break;
     }
+
+    // 2. If extension didn't give a clear answer, try analyzing content
+    if (detectedLang === 'plaintext' && fileContent) {
+        try {
+            // highlight.js can auto-detect language based on code syntax
+            const result = hljs.highlightAuto(fileContent.substring(0, 1000)); // Only analyze first 1000 chars for performance
+            if (result.language) {
+                // Map highlight.js languages to monaco languages if needed
+                const langMap: Record<string, string> = {
+                    'js': 'javascript',
+                    'ts': 'typescript',
+                    'py': 'python',
+                    'cs': 'csharp',
+                    // add more mappings if hljs returns abbreviations
+                };
+                detectedLang = langMap[result.language] || result.language;
+            }
+        } catch (e) {
+            console.warn('Language auto-detection failed', e);
+        }
+    }
+
+    setLanguage(detectedLang);
   };
 
   const handleSave = async () => {
     if (!filename && !newFile) return;
     const name = filename || 'untitled.js'; // TODO: Ask for filename if new
     try {
-      await FileSystem.writeAsStringAsync(((FileSystem as any).documentDirectory || '') + 'projects/' + name, code);
+      await FileSystem.writeAsStringAsync((FileSystem.documentDirectory || '') + 'projects/' + name, code);
       Alert.alert('Success', 'File saved');
     } catch (e) {
       Alert.alert('Error', 'Failed to save file');
@@ -65,6 +112,14 @@ export default function EditorScreen() {
     setCode(prev => prev + mockCode);
   };
 
+  const handleInsertSymbol = (symbol: string) => {
+    if (symbol === 'Tab') {
+      editorRef.current?.insertText('\t');
+    } else {
+      editorRef.current?.insertText(symbol);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.toolbar}>
@@ -73,6 +128,9 @@ export default function EditorScreen() {
         </TouchableOpacity>
         <TouchableOpacity onPress={() => setIsAiModalVisible(true)} style={styles.toolButton}>
           <Terminal color="#333" size={24} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => editorRef.current?.focus()} style={styles.toolButton}>
+          <Keyboard color="#333" size={24} />
         </TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.navigate('Git')} style={styles.toolButton}>
           <GitBranch color="#333" size={24} />
@@ -83,11 +141,28 @@ export default function EditorScreen() {
       </View>
       
       <CodeEditor 
+        key={filename || 'new'}
+        ref={editorRef}
         initialCode={code} 
         language={language} 
         onChange={setCode} 
         theme={theme}
       />
+
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
+        <View style={styles.keyboardToolbar}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="always">
+            {keyboardSymbols.map((symbol) => (
+              <TouchableOpacity key={symbol} style={styles.symbolButton} onPress={() => handleInsertSymbol(symbol)}>
+                <Text style={styles.symbolText}>{symbol}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
 
       <Modal visible={isAiModalVisible} animationType="slide" transparent>
         <View style={styles.modalContainer}>
@@ -129,6 +204,26 @@ const styles = StyleSheet.create({
   },
   toolButton: {
     padding: 8,
+  },
+  keyboardToolbar: {
+    height: 50,
+    backgroundColor: '#f0f0f0',
+    borderTopWidth: 1,
+    borderTopColor: '#ccc',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  symbolButton: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 40,
+  },
+  symbolText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
   },
   modalContainer: {
     flex: 1,

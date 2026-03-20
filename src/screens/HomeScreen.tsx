@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Button, TextInput } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import * as FileSystem from 'expo-file-system';
-import { FileCode, Plus } from 'lucide-react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Button, TextInput, Alert } from 'react-native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import * as FileSystem from 'expo-file-system/legacy';
+import { FileCode, Plus, Trash2 } from 'lucide-react-native';
 import { HomeScreenNavigationProp } from '../navigation/types';
 
 export default function HomeScreen() {
@@ -10,18 +10,48 @@ export default function HomeScreen() {
   const [files, setFiles] = useState<string[]>([]);
   const [repoUrl, setRepoUrl] = useState('');
 
-  useEffect(() => {
-    loadFiles();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadFiles();
+    }, [])
+  );
 
   const loadFiles = async () => {
-    const dir = ((FileSystem as any).documentDirectory || '') + 'projects/';
+    const dir = (FileSystem.documentDirectory || '') + 'projects/';
     const info = await FileSystem.getInfoAsync(dir);
     if (!info.exists) {
       await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
     }
     const result = await FileSystem.readDirectoryAsync(dir);
     setFiles(result);
+  };
+
+  const handleDeleteFile = (filename: string) => {
+    Alert.alert(
+      "Usuń plik",
+      `Czy na pewno chcesz usunąć plik ${filename}?`,
+      [
+        {
+          text: "Anuluj",
+          style: "cancel"
+        },
+        { 
+          text: "Usuń", 
+          onPress: async () => {
+            try {
+              const fileUri = (FileSystem.documentDirectory || '') + 'projects/' + filename;
+              await FileSystem.deleteAsync(fileUri, { idempotent: true });
+              // Odśwież listę plików po usunięciu
+              loadFiles();
+            } catch (error) {
+              Alert.alert("Błąd", "Nie udało się usunąć pliku");
+              console.error(error);
+            }
+          },
+          style: "destructive"
+        }
+      ]
+    );
   };
 
   const handleOpenFile = (filename: string) => {
@@ -59,10 +89,15 @@ export default function HomeScreen() {
         data={files}
         keyExtractor={(item) => item}
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.fileItem} onPress={() => handleOpenFile(item)}>
-            <FileCode size={24} color="#333" />
-            <Text style={styles.fileName}>{item}</Text>
-          </TouchableOpacity>
+          <View style={styles.fileItemContainer}>
+            <TouchableOpacity style={styles.fileItem} onPress={() => handleOpenFile(item)}>
+              <FileCode size={24} color="#333" />
+              <Text style={styles.fileName}>{item}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.deleteButton} onPress={() => handleDeleteFile(item)}>
+              <Trash2 size={24} color="#e74c3c" />
+            </TouchableOpacity>
+          </View>
         )}
         ListEmptyComponent={<Text style={styles.emptyText}>No projects found. Create one or clone a repo.</Text>}
       />
@@ -103,14 +138,26 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: 'white',
   },
-  fileItem: {
+  fileItemContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
     backgroundColor: 'white',
     borderRadius: 8,
     marginBottom: 10,
     elevation: 2,
+    overflow: 'hidden',
+  },
+  fileItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  deleteButton: {
+    padding: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff0f0',
   },
   fileName: {
     marginLeft: 10,
