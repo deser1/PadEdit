@@ -11,3 +11,33 @@ index 61c565b..9c83247 100644
      doFirst {
          throw new GradleException("[Worklets] Worklets require new architecture to be enabled. Please enable it by setting `newArchEnabled` to `true` in `gradle.properties`.")
      }
+diff --git a/node_modules/react-native-worklets/android/src/legacyBundling/com/swmansion/worklets/WorkletsModule.java b/node_modules/react-native-worklets/android/src/legacyBundling/com/swmansion/worklets/WorkletsModule.java
+index 3c83e00..89e0271 100644
+--- a/node_modules/react-native-worklets/android/src/legacyBundling/com/swmansion/worklets/WorkletsModule.java
++++ b/node_modules/react-native-worklets/android/src/legacyBundling/com/swmansion/worklets/WorkletsModule.java
+@@ -19,6 +19,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
+ @SuppressWarnings("JavaJniMissingFunction")
+ @ReactModule(name = WorkletsModule.NAME)
+ public class WorkletsModule extends NativeWorkletsModuleSpec implements LifecycleEventListener {
++  public static final String NAME = "Worklets";
++
+   static {
+     SoLoader.loadLibrary("worklets");
+   }
+diff --git a/node_modules/react-native-worklets/android/src/main/java/com/swmansion/worklets/WorkletsPackage.java b/node_modules/react-native-worklets/android/src/main/java/com/swmansion/worklets/WorkletsPackage.java
+index 78a6e63..13182c5 100644
+--- a/node_modules/react-native-worklets/android/src/main/java/com/swmansion/worklets/WorkletsPackage.java
++++ b/node_modules/react-native-worklets/android/src/main/java/com/swmansion/worklets/WorkletsPackage.java
+@@ -18,10 +18,10 @@ public class WorkletsPackage extends BaseReactPackage implements ReactPackage {
+   @Override
+   public NativeModule getModule(
+       @NonNull String name, @NonNull ReactApplicationContext reactContext) {
+-    return name.equals(WorkletsModule.NAME) ? new WorkletsModule(reactContext) : null;
++    return name.equals("Worklets") ? new WorkletsModule(reactContext) : null;
+   }
+ 
+-  @SuppressWarnings({"rawtypes, unchecked"})
++  @SuppressWarnings({"rawtypes", "unchecked"})
+   @NonNull
+   @Override
+   public ReactModuleInfoProvider getReactModuleInfoProvider() {
