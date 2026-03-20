@@ -48,7 +48,9 @@ npx expo run:ios
 ### 🗄️ Uruchomienie serwera API (dla klienta baz danych)
 Ponieważ urządzenia mobilne nie powinny (i w React Native z racji braków natywnych bibliotek Node nie potrafią) łączyć się bezpośrednio do portów TCP baz danych (np. MySQL 3306), przygotowany został lekki serwer pośredniczący (Proxy) w technologii Node.js/Express.
 
-Aby aplikacja mogła połączyć się z bazami MySQL, MS SQL lub Oracle:
+Serwer ten pełni rolę "tunelu" – odbiera z telefonu żądanie HTTP zawierające adres docelowej bazy danych i komendę SQL, a następnie fizycznie łączy się z **dowolną zewnętrzną bazą danych**, autoryzuje się, wykonuje zapytanie i zwraca gotowy JSON do aplikacji.
+
+**Jak z tego korzystać:**
 1. Przejdź do folderu `server-api`:
 ```bash
 cd server-api
@@ -61,7 +63,12 @@ npm install
 ```bash
 node index.js
 ```
-Serwer domyślnie uruchomi się na porcie `3000`. Pamiętaj, aby w aplikacji w widoku logowania do bazy danych, wejść w ustawienia (ikona trybika) i wpisać poprawne IP komputera uruchamiającego ten serwer (np. `http://192.168.x.x:3000`).
+4. Serwer domyślnie uruchomi się na porcie `3000`. 
+5. W aplikacji mobilnej PadEdit:
+   * W oknie **Baza Danych** kliknij ikonę ustawień (trybik). Wpisz w pole API adres serwera uruchomionego w kroku 3 (np. `http://192.168.1.100:3000` lub adres Twojego VPS).
+   * Następnie w głównym oknie logowania wpisz dane docelowej bazy danych (jej rzeczywisty Host IP, użytkownika i hasło). Jeśli baza jest na tym samym serwerze co skrypt API, wpisz `localhost` lub `127.0.0.1`.
+
+Dzięki tej architekturze jedna instancja serwera API wystarczy, aby z telefonu móc zarządzać dowolną ilością zdalnych serwerów bazodanowych na świecie.
 
 ## 📝 Planowany rozwój (Roadmap)
 - [x] Implementacja protokołu SFTP (Secure FTP).
