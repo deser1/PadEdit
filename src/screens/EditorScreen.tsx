@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Alert, Modal, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import CodeEditor, { CodeEditorHandle } from '../components/CodeEditor';
 import { Save, GitBranch, Terminal, Settings, Keyboard } from 'lucide-react-native';
 import { EditorScreenRouteProp, EditorScreenNavigationProp } from '../navigation/types';
@@ -10,24 +11,30 @@ import hljs from 'highlight.js';
 export default function EditorScreen() {
   const route = useRoute<EditorScreenRouteProp>();
   const navigation = useNavigation<EditorScreenNavigationProp>();
-  const { filename, newFile } = route.params || {};
+  const { filename: routeFilename, newFile } = route.params || {};
+  const [currentFilename, setCurrentFilename] = useState(routeFilename || '');
   const [code, setCode] = useState('// Write your code here...');
   const [language, setLanguage] = useState('javascript');
   const [theme, setTheme] = useState<'vs-dark' | 'vs-light'>('vs-dark');
   const [isAiModalVisible, setIsAiModalVisible] = useState(false);
+  const [isSaveModalVisible, setIsSaveModalVisible] = useState(false);
+  const [newFilename, setNewFilename] = useState(currentFilename || 'untitled.js');
   const [aiPrompt, setAiPrompt] = useState('');
   const editorRef = useRef<CodeEditorHandle>(null);
 
   const keyboardSymbols = ['Tab', '{', '}', '(', ')', '[', ']', '<', '>', ';', ':', "'", '"', '=', '+', '-', '*', '/', '\\', '|', '&', '!', '$', '#', '@', '%', '^', '_'];
 
   useEffect(() => {
-    if (filename) {
-      loadFile(filename);
+    if (routeFilename) {
+      setCurrentFilename(routeFilename);
+      setNewFilename(routeFilename);
+      loadFile(routeFilename);
     } else {
       setCode('// Write your code here...');
       setLanguage('javascript');
+      setCurrentFilename('');
     }
-  }, [filename]);
+  }, [routeFilename]);
 
   const loadFile = async (file: string) => {
     try {
@@ -95,13 +102,69 @@ export default function EditorScreen() {
   };
 
   const handleSave = async () => {
-    if (!filename && !newFile) return;
-    const name = filename || 'untitled.js'; // TODO: Ask for filename if new
+    if (currentFilename) {
+      Alert.alert(
+        'Nadpisz plik',
+        `Czy na pewno chcesz nadpisać plik ${currentFilename}?`,
+        [
+          { text: 'Anuluj', style: 'cancel' },
+          { 
+            text: 'Nadpisz', 
+            onPress: async () => {
+              try {
+                await FileSystem.writeAsStringAsync((FileSystem.documentDirectory || '') + 'projects/' + currentFilename, code);
+                Alert.alert('Sukces', 'Plik został nadpisany');
+              } catch (e) {
+                Alert.alert('Błąd', 'Nie udało się zapisać pliku');
+              }
+            }
+          }
+        ]
+      );
+    } else {
+      setIsSaveModalVisible(true);
+    }
+  };
+
+  const handleSaveToProjects = async () => {
+    setIsSaveModalVisible(false);
     try {
-      await FileSystem.writeAsStringAsync((FileSystem.documentDirectory || '') + 'projects/' + name, code);
-      Alert.alert('Success', 'File saved');
+      await FileSystem.writeAsStringAsync((FileSystem.documentDirectory || '') + 'projects/' + newFilename, code);
+      setCurrentFilename(newFilename);
+      Alert.alert('Sukces', 'Plik zapisany w projektach aplikacji');
     } catch (e) {
-      Alert.alert('Error', 'Failed to save file');
+      Alert.alert('Błąd', 'Nie udało się zapisać pliku');
+    }
+  };
+
+  const handleSaveToDevice = async () => {
+    setIsSaveModalVisible(false);
+    if (Platform.OS === 'android') {
+      try {
+        const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+        if (permissions.granted) {
+          const ext = newFilename.split('.').pop()?.toLowerCase();
+          let mimeType = 'text/plain';
+          if (ext === 'html') mimeType = 'text/html';
+          else if (ext === 'json') mimeType = 'application/json';
+          else if (ext === 'js') mimeType = 'application/javascript';
+          else if (ext === 'css') mimeType = 'text/css';
+          
+          const uri = await FileSystem.StorageAccessFramework.createFileAsync(permissions.directoryUri, newFilename, mimeType);
+          await FileSystem.writeAsStringAsync(uri, code);
+          Alert.alert('Sukces', 'Plik zapisany na urządzeniu');
+        }
+      } catch (e) {
+        Alert.alert('Błąd', 'Nie udało się zapisać pliku na urządzeniu');
+      }
+    } else {
+      try {
+        const tempUri = FileSystem.cacheDirectory + newFilename;
+        await FileSystem.writeAsStringAsync(tempUri, code);
+        await Sharing.shareAsync(tempUri);
+      } catch (e) {
+        Alert.alert('Błąd', 'Nie udało się udostępnić pliku');
+      }
     }
   };
 
@@ -141,7 +204,7 @@ export default function EditorScreen() {
       </View>
       
       <CodeEditor 
-        key={filename || 'new'}
+        key={currentFilename || 'new'}
         ref={editorRef}
         initialCode={code} 
         language={language} 
@@ -181,6 +244,31 @@ export default function EditorScreen() {
               </TouchableOpacity>
               <TouchableOpacity onPress={handleAiGenerate} style={styles.generateButton}>
                 <Text style={{color: 'white'}}>Generate</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={isSaveModalVisible} animationType="fade" transparent>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Zapisz nowy plik</Text>
+            <TextInput
+              style={[styles.aiInput, { height: 50 }]}
+              placeholder="Nazwa pliku (np. index.js)"
+              value={newFilename}
+              onChangeText={setNewFilename}
+            />
+            <View style={{ flexDirection: 'column', gap: 10 }}>
+              <TouchableOpacity onPress={handleSaveToProjects} style={[styles.generateButton, { backgroundColor: '#28a745' }]}>
+                <Text style={{color: 'white', textAlign: 'center'}}>Zapisz w projektach aplikacji</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleSaveToDevice} style={[styles.generateButton, { backgroundColor: '#007bff' }]}>
+                <Text style={{color: 'white', textAlign: 'center'}}>Wybierz folder w telefonie</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setIsSaveModalVisible(false)} style={[styles.cancelButton, { marginTop: 10 }]}>
+                <Text style={{textAlign: 'center'}}>Anuluj</Text>
               </TouchableOpacity>
             </View>
           </View>
