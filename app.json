@@ -27,7 +27,7 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "plugins": [
       "expo-sqlite"
     ],

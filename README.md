@@ -106,8 +106,8 @@ eas build:configure
 W nowoczesnych wersjach Expo (SDK 52+) i React Native (0.76+) domyślnie włączona jest Nowa Architektura (New Architecture). Niektóre starsze moduły natywne (np. `react-native-ssh-sftp`) mogą nie być z nią w pełni kompatybilne i powodować błędy Gradle (np. `Gradle build failed with unknown error`). 
 
 W tym projekcie zastosowano następujące rozwiązania, aby zminimalizować te problemy:
-1. **Łatki (Patches):** Używamy biblioteki `patch-package`, aby w locie łatać stare pliki `build.gradle` z paczek (m.in. usuwając martwe repozytorium `jcenter()`, dodając wymaganą przestrzeń nazw `namespace` i aktualizując metodę importu React Native). Zmiany te nakładane są automatycznie przy użyciu komendy `npm install` na podstawie plików z folderu `patches/`. W przypadku błędów kompilacji, upewnij się, że proces `postinstall` z `patch-package` zakończył się sukcesem.
-2. **Wsparcie Nowej Architektury:** Dzięki powyzszym łatkom projekt kompiluje się z włączoną Nową Architekturą (która jest wymagana przez niektóre nowe pakiety, takie jak `react-native-worklets`).
+1. **Wyłączenie Nowej Architektury:** W pliku `app.json` ustawiono flagę `"newArchEnabled": false`.
+2. **Łatki (Patches):** Używamy biblioteki `patch-package`, aby w locie łatać stare pliki `build.gradle` z paczek (m.in. usuwając martwe repozytorium `jcenter()`, dodając wymaganą przestrzeń nazw `namespace` i aktualizując metodę importu React Native). Zmiany te nakładane są automatycznie przy użyciu komendy `npm install` na podstawie plików z folderu `patches/`. W przypadku błędów kompilacji, upewnij się, że proces `postinstall` z `patch-package` zakończył się sukcesem.
 
 ## 📝 Planowany rozwój (Roadmap)
 - [x] Implementacja protokołu SFTP (Secure FTP).
