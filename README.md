@@ -70,6 +70,38 @@ node index.js
 
 Dzięki tej architekturze jedna instancja serwera API wystarczy, aby z telefonu móc zarządzać dowolną ilością zdalnych serwerów bazodanowych na świecie.
 
+## 📦 Budowanie wersji Release (Produkcyjnej)
+
+Aby wygenerować gotową paczkę dla użytkowników (np. plik `.apk` dla Androida lub `.ipa` dla iOS), zaleca się użycie usługi **EAS Build** (Expo Application Services). Pozwala to uniknąć problemów z konfiguracją lokalnego środowiska.
+
+**Krok 1:** Zainstaluj globalnie narzędzie EAS CLI:
+```bash
+npm install -g eas-cli
+```
+
+**Krok 2:** Zaloguj się na darmowe konto Expo (expo.dev):
+```bash
+eas login
+```
+
+**Krok 3:** Zainicjuj projekt w EAS (utworzy to plik `eas.json`):
+```bash
+eas build:configure
+```
+
+**Krok 4:** Uruchom budowanie:
+
+*   **Dla Androida (.aab / .apk):**
+    ```bash
+    eas build -p android --profile production
+    ```
+*   **Dla iOS (.ipa):**
+    ```bash
+    eas build -p ios --profile production
+    ```
+
+*(Alternatywnie, jeśli posiadasz skonfigurowane Android Studio lub Xcode, możesz użyć komend lokalnych: `npx expo run:android --variant release` lub `npx expo run:ios --configuration Release`).*
+
 ## 📝 Planowany rozwój (Roadmap)
 - [x] Implementacja protokołu SFTP (Secure FTP).
 - [x] Rozbudowa obsługi wielu kart (zakładek) dla otwartych plików.
