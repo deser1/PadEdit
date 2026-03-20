@@ -52,3 +52,4 @@ npx expo run:ios
 - [x] Obsługa systemowego schowka i Drag&Drop w edytorze.
 - [x] Integracja bazy danych SQLite dla lokalnych projektów.
 - [x] Wsparcie dla powiadomień Push z serwerów CI/CD.
+- [x] Klient do wizualnego zarządzania zewnętrznymi relacyjnymi bazami danych (MySQL, MS SQL, Oracle).

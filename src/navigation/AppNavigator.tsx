@@ -7,6 +7,7 @@ import GitScreen from '../screens/GitScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import FtpScreen from '../screens/FtpScreen';
 import SshTerminalScreen from '../screens/SshTerminalScreen';
+import DatabaseScreen from '../screens/DatabaseScreen';
 
 const Stack = createStackNavigator();
 
@@ -20,6 +21,7 @@ export default function AppNavigator() {
         <Stack.Screen name="Ftp" component={FtpScreen} options={{ title: 'FTP Connection' }} />
         <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
         <Stack.Screen name="SshTerminal" component={SshTerminalScreen} options={{ title: 'SSH Terminal' }} />
+        <Stack.Screen name="Database" component={DatabaseScreen} options={{ title: 'Bazy danych' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

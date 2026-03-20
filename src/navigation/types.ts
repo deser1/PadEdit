@@ -8,6 +8,7 @@ export type RootStackParamList = {
   Ftp: undefined;
   Settings: undefined;
   SshTerminal: undefined;
+  Database: undefined;
 };
 
 export type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;

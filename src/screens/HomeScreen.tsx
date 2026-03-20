@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Button, TextInput, Alert, Modal } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import * as FileSystem from 'expo-file-system/legacy';
-import { FileCode, Plus, Trash2, Folder, Terminal } from 'lucide-react-native';
+import { FileCode, Plus, Trash2, Folder, Terminal, Database } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HomeScreenNavigationProp } from '../navigation/types';
 
@@ -129,6 +129,9 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>PadEdit</Text>
         <View style={styles.headerActions}>
+          <TouchableOpacity onPress={() => navigation.navigate('Database' as any)} style={styles.iconButton}>
+            <Database color="#007bff" size={24} />
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('Ftp')} style={styles.iconButton}>
             <Folder color="#007bff" size={24} />
           </TouchableOpacity>
