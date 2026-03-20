@@ -11,6 +11,7 @@ interface CodeEditorProps {
 
 export interface CodeEditorHandle {
   insertText: (text: string) => void;
+  pasteText: (text: string) => void;
   focus: () => void;
   getSelectedText: () => Promise<string>;
 }
@@ -165,6 +166,9 @@ const CodeEditor = React.forwardRef<CodeEditorHandle, CodeEditorProps>(({ initia
              content: selectedText
            }));
          }
+         if (data.type === 'paste') {
+           window.editor.trigger('keyboard', 'paste', {text: data.text});
+         }
        } catch (e) {
          // ignore
        }
@@ -219,6 +223,12 @@ const CodeEditor = React.forwardRef<CodeEditorHandle, CodeEditorProps>(({ initia
     }
   };
 
+  const pasteText = (text: string) => {
+    if (webViewRef.current) {
+      webViewRef.current.postMessage(JSON.stringify({ type: 'paste', text }));
+    }
+  };
+
   const focus = () => {
     if (webViewRef.current) {
       // Inject JS to force focus
@@ -253,6 +263,7 @@ const CodeEditor = React.forwardRef<CodeEditorHandle, CodeEditorProps>(({ initia
 
   React.useImperativeHandle(ref, () => ({
     insertText,
+    pasteText,
     focus,
     getSelectedText
   }));

@@ -6,8 +6,9 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { WebView } from 'react-native-webview';
 import CodeEditor, { CodeEditorHandle } from '../components/CodeEditor';
-import { Save, GitBranch, Terminal, Settings, Keyboard, X, Play } from 'lucide-react-native';
+import { Save, GitBranch, Terminal, Settings, Keyboard, X, Play, ClipboardPaste } from 'lucide-react-native';
 import { EditorScreenRouteProp, EditorScreenNavigationProp } from '../navigation/types';
+import * as Clipboard from 'expo-clipboard';
 import hljs from 'highlight.js';
 
 interface OpenFile {
@@ -328,6 +329,13 @@ Based on the user's prompt, output ONLY the raw code that should be appended or 
     }
   };
 
+  const handlePaste = async () => {
+    const text = await Clipboard.getStringAsync();
+    if (text && editorRef.current) {
+      editorRef.current.pasteText(text);
+    }
+  };
+
   const handleInsertSymbol = (symbol: string) => {
     if (symbol === 'Tab') {
       editorRef.current?.insertText('\t');
@@ -430,6 +438,9 @@ Based on the user's prompt, output ONLY the raw code that should be appended or 
       <View style={styles.toolbar}>
         <TouchableOpacity onPress={handleSave} style={styles.toolButton}>
           <Save color="#333" size={24} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={handlePaste} style={styles.toolButton}>
+          <ClipboardPaste color="#333" size={24} />
         </TouchableOpacity>
         <TouchableOpacity onPress={handleRunCode} style={styles.toolButton}>
           <Play color="#333" size={24} />

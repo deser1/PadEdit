@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, Button, StyleSheet, Alert, TouchableOpacity, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SSHClient, { PtyType } from '@dylankenneally/react-native-ssh-sftp';
 import { LogOut } from 'lucide-react-native';
+import { WebView } from 'react-native-webview';
 
 export default function SshTerminalScreen() {
   const [host, setHost] = useState('');
@@ -14,7 +15,7 @@ export default function SshTerminalScreen() {
   const [command, setCommand] = useState('');
   
   const sshRef = useRef<SSHClient | null>(null);
-  const scrollViewRef = useRef<ScrollView>(null);
+  const webViewRef = useRef<WebView>(null);
 
   useEffect(() => {
     const loadCredentials = async () => {
@@ -37,11 +38,73 @@ export default function SshTerminalScreen() {
     };
   }, []);
 
+  const xtermHtml = React.useMemo(() => `
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+        <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+        <style>
+          body, html { margin: 0; padding: 0; height: 100%; background-color: #000; overflow: hidden; }
+          #terminal { height: 100%; width: 100%; }
+        </style>
+      </head>
+      <body>
+        <div id="terminal"></div>
+        <script>
+          const term = new Terminal({
+            cursorBlink: true,
+            theme: { background: '#000000' },
+            fontFamily: 'monospace'
+          });
+          const fitAddon = new FitAddon.FitAddon();
+          term.loadAddon(fitAddon);
+          term.open(document.getElementById('terminal'));
+          fitAddon.fit();
+
+          window.addEventListener('resize', () => {
+            fitAddon.fit();
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'resize',
+              cols: term.cols,
+              rows: term.rows
+            }));
+          });
+
+          term.onData(e => {
+            window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'data', data: e }));
+          });
+
+          window.addEventListener('message', event => {
+            try {
+              const msg = JSON.parse(event.data);
+              if (msg.type === 'write') {
+                term.write(msg.data);
+              }
+            } catch(e) {}
+          });
+          
+          setTimeout(() => {
+             fitAddon.fit();
+             window.ReactNativeWebView.postMessage(JSON.stringify({
+               type: 'resize',
+               cols: term.cols,
+               rows: term.rows
+             }));
+          }, 500);
+        </script>
+      </body>
+    </html>
+  `, []);
+
   const log = (msg: string) => {
-    setLogs(prev => prev + msg + '\n');
-    setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 100);
+    // Legacy log funkcja, jeśli byśmy chcieli coś wyświetlić (obecnie ignorowana na rzecz xterm)
+  };
+
+  const writeToXterm = (data: string) => {
+    if (webViewRef.current) {
+      webViewRef.current.postMessage(JSON.stringify({ type: 'write', data }));
+    }
   };
 
   const handleConnect = async () => {
@@ -68,11 +131,7 @@ export default function SshTerminalScreen() {
       // Nasłuchuj danych ze strumienia
       client.on('Shell', (event: any) => {
         if (event && typeof event === 'string') {
-          // Usuwamy nadmiarowe znaki powrotu karetki
-          setLogs(prev => prev + event.replace(/\r\n/g, '\n'));
-          setTimeout(() => {
-            scrollViewRef.current?.scrollToEnd({ animated: true });
-          }, 100);
+          writeToXterm(event);
         }
       });
 
@@ -100,15 +159,20 @@ export default function SshTerminalScreen() {
   };
 
   const handleSendCommand = async () => {
-    if (!command.trim() || !sshRef.current) return;
-    
-    const cmdToSend = command;
-    setCommand(''); // Wyczyść pole natychmiast
-    
+    // Funkcja wywoływana, gdybyśmy chcieli ręcznie wpisać komendę z zewnątrz
+    // Ale w Xtermie znaki lecą automatycznie.
+  };
+
+  const handleWebViewMessage = (event: any) => {
     try {
-      await sshRef.current.writeToShell(cmdToSend + '\n');
-    } catch (err: any) {
-      log(`[Błąd wykonania]: ${err.message}`);
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.type === 'data') {
+        if (sshRef.current) {
+          sshRef.current.writeToShell(data.data);
+        }
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -148,28 +212,15 @@ export default function SshTerminalScreen() {
             </TouchableOpacity>
           </View>
           
-          <ScrollView 
-            ref={scrollViewRef} 
-            style={styles.logsContainer}
-            contentContainerStyle={{ flexGrow: 1 }}
-          >
-            <Text style={styles.logsText}>{logs}</Text>
-          </ScrollView>
-          
-          <View style={styles.inputRow}>
-            <TextInput 
-              style={styles.commandInput} 
-              placeholder="Wpisz komendę..." 
-              value={command} 
-              onChangeText={setCommand}
-              onSubmitEditing={handleSendCommand}
-              autoCapitalize="none"
-              autoCorrect={false}
-              placeholderTextColor="#888"
+          <View style={styles.webViewContainer}>
+            <WebView
+              ref={webViewRef}
+              originWhitelist={['*']}
+              source={{ html: xtermHtml }}
+              onMessage={handleWebViewMessage}
+              scrollEnabled={false}
+              bounces={false}
             />
-            <TouchableOpacity style={styles.sendButton} onPress={handleSendCommand}>
-              <Text style={styles.sendButtonText}>Wyślij</Text>
-            </TouchableOpacity>
           </View>
         </View>
       )}
@@ -180,12 +231,13 @@ export default function SshTerminalScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#000',
   },
   formContainer: {
     padding: 20,
     flex: 1,
     justifyContent: 'center',
+    backgroundColor: '#fff',
   },
   title: {
     fontSize: 24,
@@ -228,38 +280,8 @@ const styles = StyleSheet.create({
     color: 'white',
     marginLeft: 5,
   },
-  logsContainer: {
+  webViewContainer: {
     flex: 1,
-    padding: 10,
-  },
-  logsText: {
-    color: '#00ff00',
-    fontFamily: 'monospace',
-    fontSize: 14,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    padding: 10,
-    backgroundColor: '#222',
-  },
-  commandInput: {
-    flex: 1,
-    backgroundColor: '#111',
-    color: '#fff',
-    padding: 10,
-    borderRadius: 5,
-    fontFamily: 'monospace',
-  },
-  sendButton: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#007bff',
-    paddingHorizontal: 15,
-    borderRadius: 5,
-    marginLeft: 10,
-  },
-  sendButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
+    backgroundColor: '#000',
+  }
 });

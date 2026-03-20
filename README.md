@@ -48,5 +48,7 @@ npx expo run:ios
 - [x] Emulacja prostego terminala do uruchamiania skryptów Node.js / Python lokalnie.
 - [x] Wsparcie dla zdalnego wykonywania kodu (SSH Terminal).
 - [x] Rozbudowa opcji zarządzania wieloma projektami (Workspace).
-- [ ] Rozbudowa terminala SSH o pełną obsługę interaktywnych programów (np. htop, vim).
-- [ ] Obsługa systemowego schowka i Drag&Drop w edytorze.
+- [x] Rozbudowa terminala SSH o pełną obsługę interaktywnych programów (np. htop, vim).
+- [x] Obsługa systemowego schowka i Drag&Drop w edytorze.
+- [ ] Integracja bazy danych SQLite dla lokalnych projektów.
+- [ ] Wsparcie dla powiadomień Push z serwerów CI/CD.
