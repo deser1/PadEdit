@@ -1,42 +1,48 @@
-# PadEdit - Mobile Code Editor
+# 📱 PadEdit - Ultimate Mobile Code Editor
 
-PadEdit is a powerful code editor for Android and iOS, built with React Native and Expo.
+**PadEdit** to potężny, wieloplatformowy edytor kodu na urządzenia z systemem Android i iOS. Został zaprojektowany z myślą o programistach, którzy potrzebują elastycznego narzędzia do pisania, edytowania i zarządzania kodem bezpośrednio ze swojego smartfona lub tabletu.
 
-## Features
+## ✨ Główne funkcje
 
-- **Syntax Highlighting & Autocomplete**: Supports multiple languages using Monaco Editor.
-- **FTP Editing**: Edit files directly on remote servers (Planned/In-progress).
-- **Git Integration**: Clone, commit, push, pull repositories using `isomorphic-git`.
-- **File Management**: Local file system access.
-- **AI Engine**: Code modeling and generation (Paid feature placeholder).
-- **Customizable**: Themes and settings.
+*   🎨 **Zaawansowane kolorowanie składni:** Wykorzystuje silnik **Monaco Editor** (znany z VS Code). Automatycznie rozpoznaje język programowania na podstawie rozszerzenia pliku lub inteligentnej analizy jego zawartości (dzięki `highlight.js`).
+*   🌐 **Edycja plików na żywo przez FTP:** Wbudowany, w pełni funkcjonalny klient FTP. Pozwala na łączenie się z serwerami, przeglądanie katalogów, pobieranie, edytowanie i natychmiastowe nadpisywanie plików zdalnych.
+*   🐙 **Pełna integracja z Git / GitHub:** Klonuj repozytoria, twórz commity, wysyłaj (push) i pobieraj (pull) zmiany bez wychodzenia z aplikacji.
+*   ⌨️ **Klawiatura dla programistów:** Niestandardowy, pływający pasek narzędzi (Toolbar) umieszczony nad systemową klawiaturą, zapewniający błyskawiczny dostęp do najczęściej używanych znaków programistycznych (np. `{}`, `[]`, `()`, `<`, `>`, Tab, i innych).
+*   📁 **Rozbudowane zarządzanie plikami:** Twórz i usuwaj pliki, organizuj lokalne projekty, nadpisuj zmiany, a także eksportuj pliki bezpośrednio do pamięci urządzenia lub udostępniaj je dalej.
+*   🤖 **Asystent AI (Opcja Premium):** Wbudowany generator kodu oparty na sztucznej inteligencji, pomagający w tworzeniu fragmentów kodu na podstawie opisu tekstowego.
 
-## Getting Started
+## 🛠️ Technologie i Architektura
 
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
+Projekt został zbudowany przy użyciu nowoczesnego stosu technologicznego:
+*   **Framework:** React Native / Expo
+*   **Język:** TypeScript
+*   **Edytor:** Monaco Editor (uruchamiany w zoptymalizowanym komponencie WebView z pominięciem natywnych problemów z kompozycją klawiatury Gboard/iOS)
+*   **Natywne moduły:** `react-native-tcp-socket` dla obsługi prawdziwych połączeń FTP (wymija ograniczenia Expo Go)
+*   **Zarządzanie stanem/danymi:** AsyncStorage, Expo FileSystem, Expo Sharing, Expo Document Picker
+*   **Git:** `isomorphic-git` z odpowiednimi polyfillami dla środowiska mobilnego
 
-2. Run the app:
-   ```bash
-   npx expo start
-   ```
+## 🚀 Uruchomienie lokalne
 
-3. Scan the QR code with Expo Go app on your mobile device.
+Z uwagi na wykorzystanie natywnych gniazd TCP (TCP sockets) dla obsługi klienta FTP, aplikacja wymaga zbudowania natywnej aplikacji deweloperskiej (Custom Dev Client), a nie standardowego środowiska Expo Go.
 
-## Project Structure
+```bash
+# 1. Sklonuj repozytorium
+git clone git@github.com:deser1/PadEdit.git
 
-- `src/components`: UI Components (CodeEditor, etc.)
-- `src/screens`: App Screens (Home, Editor, Git, Settings)
-- `src/services`: Logic for Git, etc.
-- `src/utils`: Helpers and Polyfills.
+# 2. Przejdź do folderu
+cd PadEdit
 
-## Requirements
+# 3. Zainstaluj zależności
+npm install
 
-- Node.js
-- Expo Go (on mobile) or Android/iOS Simulator.
+# 4. Uruchom natywny build na wybraną platformę (wymaga Android Studio lub Xcode)
+npx expo run:android
+# lub
+npx expo run:ios
+```
 
-## License
-
-MIT
+## 📝 Planowany rozwój (Roadmap)
+- [ ] Implementacja protokołu SFTP (Secure FTP).
+- [ ] Rozbudowa obsługi wielu kart (zakładek) dla otwartych plików.
+- [ ] Połączenie asystenta AI z prawdziwym API (np. OpenAI / Anthropic).
+- [ ] Emulacja prostego terminala do uruchamiania skryptów Node.js / Python lokalnie.
