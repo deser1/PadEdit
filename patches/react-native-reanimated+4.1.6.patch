@@ -11,3 +11,93 @@ index 6b73a69..b6140ae 100644
      doFirst {
          throw new GradleException("[Reanimated] Reanimated requires new architecture to be enabled. Please enable it by setting `newArchEnabled` to `true` in `gradle.properties`.")
      }
+diff --git a/node_modules/react-native-reanimated/android/src/main/java/com/swmansion/reanimated/ReanimatedModule.java b/node_modules/react-native-reanimated/android/src/main/java/com/swmansion/reanimated/ReanimatedModule.java
+index 7d7f1c0..56bf353 100644
+--- a/node_modules/react-native-reanimated/android/src/main/java/com/swmansion/reanimated/ReanimatedModule.java
++++ b/node_modules/react-native-reanimated/android/src/main/java/com/swmansion/reanimated/ReanimatedModule.java
+@@ -2,25 +2,36 @@ package com.swmansion.reanimated;
+ 
+ import com.facebook.react.bridge.LifecycleEventListener;
+ import com.facebook.react.bridge.ReactApplicationContext;
+-import com.facebook.react.bridge.ReactMethod;
++import com.facebook.react.bridge.ReactContextBaseJavaModule;
+ import com.facebook.react.module.annotations.ReactModule;
+ import com.swmansion.worklets.WorkletsModule;
+ 
+-@ReactModule(name = ReanimatedModule.NAME)
+-public class ReanimatedModule extends NativeReanimatedModuleSpec implements LifecycleEventListener {
++import com.facebook.react.bridge.ReactMethod;
++
++@ReactModule(name = "ReanimatedModule")
++public class ReanimatedModule extends ReactContextBaseJavaModule implements LifecycleEventListener {
++  public static final String NAME = "ReanimatedModule";
++
+   private final NodesManager mNodesManager;
+   private final WorkletsModule mWorkletsModule;
++  private final ReactApplicationContext mReactContext;
+ 
+   public ReanimatedModule(ReactApplicationContext reactContext) {
+     super(reactContext);
++    mReactContext = reactContext;
+     reactContext.assertOnJSQueueThread();
+     mWorkletsModule = reactContext.getNativeModule(WorkletsModule.class);
+     mNodesManager = new NodesManager(reactContext, mWorkletsModule);
+   }
+ 
++  @Override
++  public String getName() {
++    return NAME;
++  }
++
+   @Override
+   public void initialize() {
+-    ReactApplicationContext reactContext = getReactApplicationContext();
++    ReactApplicationContext reactContext = mReactContext;
+     reactContext.assertOnJSQueueThread();
+     reactContext.addLifecycleEventListener(this);
+   }
+@@ -47,7 +58,7 @@ public class ReanimatedModule extends NativeReanimatedModuleSpec implements Life
+ 
+   @ReactMethod(isBlockingSynchronousMethod = true)
+   public boolean installTurboModule() {
+-    getReactApplicationContext().assertOnJSQueueThread();
++    mReactContext.assertOnJSQueueThread();
+     mNodesManager.getNativeProxy().installJSIBindings();
+     return true;
+   }
+@@ -64,9 +75,8 @@ public class ReanimatedModule extends NativeReanimatedModuleSpec implements Life
+ 
+   @Override
+   public void invalidate() {
+-    super.invalidate();
+     mNodesManager.invalidate();
+-    ReactApplicationContext reactContext = getReactApplicationContext();
++    ReactApplicationContext reactContext = mReactContext;
+     reactContext.removeLifecycleEventListener(this);
+   }
+ }
+diff --git a/node_modules/react-native-reanimated/android/src/main/java/com/swmansion/reanimated/ReanimatedPackage.java b/node_modules/react-native-reanimated/android/src/main/java/com/swmansion/reanimated/ReanimatedPackage.java
+index eee7e93..b2b68e9 100644
+--- a/node_modules/react-native-reanimated/android/src/main/java/com/swmansion/reanimated/ReanimatedPackage.java
++++ b/node_modules/react-native-reanimated/android/src/main/java/com/swmansion/reanimated/ReanimatedPackage.java
+@@ -23,15 +23,15 @@ public class ReanimatedPackage extends BaseReactPackage implements ReactPackage
+   @Override
+   public NativeModule getModule(
+       @NonNull String name, @NonNull ReactApplicationContext reactContext) {
+-    return switch (name) {
+-      case ReanimatedModule.NAME -> new ReanimatedModule(reactContext);
+-      default -> null;
+-    };
++    if (name.equals(ReanimatedModule.NAME)) {
++      return new ReanimatedModule(reactContext);
++    }
++    return null;
+   }
+ 
+   @Override
+   public ReactModuleInfoProvider getReactModuleInfoProvider() {
+-    Class<? extends NativeModule>[] moduleList =
++    Class[] moduleList =
+         new Class[] {
+           ReanimatedModule.class,
+         };
