@@ -5,21 +5,25 @@
 ## ✨ Główne funkcje
 
 *   🎨 **Zaawansowane kolorowanie składni:** Wykorzystuje silnik **Monaco Editor** (znany z VS Code). Automatycznie rozpoznaje język programowania na podstawie rozszerzenia pliku lub inteligentnej analizy jego zawartości (dzięki `highlight.js`).
-*   🌐 **Edycja plików na żywo przez FTP:** Wbudowany, w pełni funkcjonalny klient FTP. Pozwala na łączenie się z serwerami, przeglądanie katalogów, pobieranie, edytowanie i natychmiastowe nadpisywanie plików zdalnych.
+*   🌐 **Edycja plików na żywo przez FTP/SFTP:** Wbudowany, w pełni funkcjonalny klient pozwalający na łączenie się z serwerami (w tym bezpieczne połączenia SFTP), przeglądanie katalogów, pobieranie, edytowanie i natychmiastowe nadpisywanie plików zdalnych.
 *   🐙 **Pełna integracja z Git / GitHub:** Klonuj repozytoria, twórz commity, wysyłaj (push) i pobieraj (pull) zmiany bez wychodzenia z aplikacji.
-*   ⌨️ **Klawiatura dla programistów:** Niestandardowy, pływający pasek narzędzi (Toolbar) umieszczony nad systemową klawiaturą, zapewniający błyskawiczny dostęp do najczęściej używanych znaków programistycznych (np. `{}`, `[]`, `()`, `<`, `>`, Tab, i innych).
-*   📁 **Rozbudowane zarządzanie plikami:** Twórz i usuwaj pliki, organizuj lokalne projekty, nadpisuj zmiany, a także eksportuj pliki bezpośrednio do pamięci urządzenia lub udostępniaj je dalej.
-*   🤖 **Asystent AI (Opcja Premium):** Wbudowany generator kodu oparty na sztucznej inteligencji, pomagający w tworzeniu fragmentów kodu na podstawie opisu tekstowego.
+*   ⌨️ **Klawiatura dla programistów:** Niestandardowy, pływający pasek narzędzi (Toolbar) umieszczony nad systemową klawiaturą, zapewniający błyskawiczny dostęp do najczęściej używanych znaków programistycznych.
+*   📁 **Rozbudowane zarządzanie projektami (Workspaces):** Twórz przestrzenie robocze (Workspaces), zarządzaj plikami lokalnymi w oparciu o bazę **SQLite** oraz bezpieczny zapis w pamięci telefonu.
+*   🤖 **Zaawansowany Asystent AI:** Integracja z wieloma silnikami sztucznej inteligencji (**OpenAI, Anthropic, Gemini**). AI posiada pełny kontekst edytowanego pliku i potrafi generować, uzupełniać lub analizować zaznaczony kod.
+*   💻 **Interaktywny Terminal SSH:** Wbudowany emulator terminala oparty na **Xterm.js**, pozwalający na logowanie do zdalnych serwerów po SSH i korzystanie z programów pełnoekranowych (takich jak `vim`, `htop`, `mc`).
+*   🗄️ **Klient Baz Danych (MySQL, MSSQL, Oracle):** Graficzny interfejs do pisania zapytań SQL i podglądu wyników w przejrzystych tabelach (wymaga uruchomienia lekkiego API Proxy w Node.js).
+*   ▶️ **Lokalne wykonywanie skryptów:** Możliwość odpalania skryptów JavaScript i Python (poprzez środowisko Pyodide) bezpośrednio na urządzeniu w wirtualnej konsoli.
 
 ## 🛠️ Technologie i Architektura
 
 Projekt został zbudowany przy użyciu nowoczesnego stosu technologicznego:
 *   **Framework:** React Native / Expo
 *   **Język:** TypeScript
-*   **Edytor:** Monaco Editor (uruchamiany w zoptymalizowanym komponencie WebView z pominięciem natywnych problemów z kompozycją klawiatury Gboard/iOS)
-*   **Natywne moduły:** `react-native-tcp-socket` dla obsługi prawdziwych połączeń FTP (wymija ograniczenia Expo Go)
-*   **Zarządzanie stanem/danymi:** AsyncStorage, Expo FileSystem, Expo Sharing, Expo Document Picker
+*   **Edytor:** Monaco Editor (uruchamiany w zoptymalizowanym komponencie WebView)
+*   **Natywne moduły:** `react-native-tcp-socket`, `react-native-ssh-sftp`
+*   **Zarządzanie stanem/danymi:** AsyncStorage, Expo SQLite, Expo FileSystem
 *   **Git:** `isomorphic-git` z odpowiednimi polyfillami dla środowiska mobilnego
+*   **Powiadomienia:** `expo-notifications` (obsługa Push dla CI/CD)
 
 ## 🚀 Uruchomienie lokalne
 
