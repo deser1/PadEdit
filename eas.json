@@ -18,7 +18,7 @@
       "autoIncrement": true,
       "android": {
         "buildType": "apk",
-        "image": "ubuntu-22.04-jdk-17-ndk-r23b"
+        "image": "ubuntu-22.04-jdk-17-ndk-r26b"
       },
       "env": {
         "EXPO_USE_COMMUNITY_AUTOLINKING": "1"
