@@ -11,6 +11,7 @@ config.resolver.extraNodeModules = {
   util: require.resolve('util'),
   net: require.resolve('react-native-tcp-socket'),
   tls: require.resolve('react-native-tcp-socket'),
+  fs: require.resolve('empty-module'),
 };
 
 module.exports = config;

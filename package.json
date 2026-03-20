@@ -16,6 +16,7 @@
     "axios": "^1.13.6",
     "basic-ftp": "^5.2.0",
     "buffer": "^6.0.3",
+    "empty-module": "^0.0.2",
     "events": "^3.3.0",
     "expo": "~54.0.33",
     "expo-clipboard": "~8.0.8",
