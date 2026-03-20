@@ -50,5 +50,5 @@ npx expo run:ios
 - [x] Rozbudowa opcji zarządzania wieloma projektami (Workspace).
 - [x] Rozbudowa terminala SSH o pełną obsługę interaktywnych programów (np. htop, vim).
 - [x] Obsługa systemowego schowka i Drag&Drop w edytorze.
-- [ ] Integracja bazy danych SQLite dla lokalnych projektów.
-- [ ] Wsparcie dla powiadomień Push z serwerów CI/CD.
+- [x] Integracja bazy danych SQLite dla lokalnych projektów.
+- [x] Wsparcie dla powiadomień Push z serwerów CI/CD.

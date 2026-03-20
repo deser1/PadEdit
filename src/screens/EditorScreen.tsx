@@ -11,6 +11,8 @@ import { EditorScreenRouteProp, EditorScreenNavigationProp } from '../navigation
 import * as Clipboard from 'expo-clipboard';
 import hljs from 'highlight.js';
 
+import { initDb, getWorkspaces, addWorkspace, getFiles, saveFile, readFile, deleteFile } from '../utils/database';
+
 interface OpenFile {
   filename: string;
   content: string;
@@ -46,7 +48,7 @@ export default function EditorScreen() {
       if (existingIndex >= 0) {
         setActiveIndex(existingIndex);
       } else {
-        loadFile(routeFilename);
+        loadFileData(routeFilename);
       }
     } else if (openFiles.length === 0) {
       // Domyślny pusty plik
@@ -55,13 +57,19 @@ export default function EditorScreen() {
     }
   }, [routeFilename]);
 
-  const loadFile = async (file: string) => {
+  const loadFileData = async (file: string) => {
     try {
-      const content = await FileSystem.readAsStringAsync((FileSystem.documentDirectory || '') + currentWorkspace + '/' + file);
-      const lang = detectLanguage(file, content);
+      let content = await readFile(currentWorkspace, file);
+      
+      // Fallback do FileSystem, jeśli brak w SQLite
+      if (content === null) {
+        content = await FileSystem.readAsStringAsync((FileSystem.documentDirectory || '') + currentWorkspace + '/' + file);
+      }
+      
+      const lang = detectLanguage(file, content || '');
       
       setOpenFiles(prev => {
-        const newFiles = [...prev, { filename: file, content, language: lang }];
+        const newFiles = [...prev, { filename: file, content: content || '', language: lang }];
         setActiveIndex(newFiles.length - 1);
         return newFiles;
       });
@@ -153,7 +161,12 @@ export default function EditorScreen() {
             text: 'Nadpisz', 
             onPress: async () => {
               try {
+                // Zapisz do SQLite
+                await saveFile(currentWorkspace, activeFile.filename, activeFile.content);
+                
+                // Zapisz do FileSystem jako fallback
                 await FileSystem.writeAsStringAsync((FileSystem.documentDirectory || '') + currentWorkspace + '/' + activeFile.filename, activeFile.content);
+                
                 Alert.alert('Sukces', 'Plik został nadpisany');
               } catch (e) {
                 Alert.alert('Błąd', 'Nie udało się zapisać pliku');
@@ -172,6 +185,7 @@ export default function EditorScreen() {
     if (!activeFile) return;
     setIsSaveModalVisible(false);
     try {
+      await saveFile(currentWorkspace, newFilename, activeFile.content);
       await FileSystem.writeAsStringAsync((FileSystem.documentDirectory || '') + currentWorkspace + '/' + newFilename, activeFile.content);
       setOpenFiles(prev => {
         const newFiles = [...prev];

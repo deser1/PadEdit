@@ -6,6 +6,8 @@ import { FileCode, Plus, Trash2, Folder, Terminal } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HomeScreenNavigationProp } from '../navigation/types';
 
+import { initDb, getWorkspaces, addWorkspace, getFiles, saveFile, readFile, deleteFile } from '../utils/database';
+
 export default function HomeScreen() {
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const [files, setFiles] = useState<string[]>([]);
@@ -15,27 +17,23 @@ export default function HomeScreen() {
   const [isWorkspaceModalVisible, setIsWorkspaceModalVisible] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
 
-  useFocusEffect(
-    useCallback(() => {
-      loadWorkspaces();
-      loadFiles(currentWorkspace);
-    }, [currentWorkspace])
-  );
-
-  const loadWorkspaces = async () => {
+  const loadWorkspacesData = async () => {
     try {
-      const savedWorkspaces = await AsyncStorage.getItem('workspaces');
-      if (savedWorkspaces) {
-        setWorkspaces(JSON.parse(savedWorkspaces));
-      } else {
-        await AsyncStorage.setItem('workspaces', JSON.stringify(['projects']));
-      }
+      const dbWorkspaces = await getWorkspaces();
+      setWorkspaces(dbWorkspaces.length > 0 ? dbWorkspaces : ['projects']);
     } catch (e) {
       console.error(e);
     }
   };
 
-  const createWorkspace = async () => {
+  useFocusEffect(
+    useCallback(() => {
+      loadWorkspacesData();
+      loadFilesData(currentWorkspace);
+    }, [currentWorkspace])
+  );
+
+  const createWorkspaceData = async () => {
     if (!newWorkspaceName.trim()) return;
     const cleanName = newWorkspaceName.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
     
@@ -45,12 +43,13 @@ export default function HomeScreen() {
     }
 
     try {
-      const newWorkspaces = [...workspaces, cleanName];
-      await AsyncStorage.setItem('workspaces', JSON.stringify(newWorkspaces));
+      await addWorkspace(cleanName);
       
+      // Fallback: zachowujemy również stary katalog w file systemie dla kompatybilności
       const dir = (FileSystem.documentDirectory || '') + cleanName + '/';
       await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
       
+      const newWorkspaces = [...workspaces, cleanName];
       setWorkspaces(newWorkspaces);
       setCurrentWorkspace(cleanName);
       setIsWorkspaceModalVisible(false);
@@ -60,14 +59,26 @@ export default function HomeScreen() {
     }
   };
 
-  const loadFiles = async (workspace: string) => {
-    const dir = (FileSystem.documentDirectory || '') + workspace + '/';
-    const info = await FileSystem.getInfoAsync(dir);
-    if (!info.exists) {
-      await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+  const loadFilesData = async (workspace: string) => {
+    try {
+      // Ładujemy pliki z bazy danych
+      const dbFiles = await getFiles(workspace);
+      
+      // Dla kompatybilności w dół, można scalić z systemem plików, ale SQLite ma priorytet
+      const dir = (FileSystem.documentDirectory || '') + workspace + '/';
+      const info = await FileSystem.getInfoAsync(dir);
+      let fsFiles: string[] = [];
+      if (info.exists) {
+        fsFiles = await FileSystem.readDirectoryAsync(dir);
+      } else {
+        await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+      }
+
+      const allFiles = Array.from(new Set([...dbFiles, ...fsFiles]));
+      setFiles(allFiles);
+    } catch (e) {
+      console.error('Error loading files:', e);
     }
-    const result = await FileSystem.readDirectoryAsync(dir);
-    setFiles(result);
   };
 
   const handleDeleteFile = (filename: string) => {
@@ -83,9 +94,17 @@ export default function HomeScreen() {
           text: "Usuń", 
           onPress: async () => {
             try {
+              // Usuń z SQLite
+              await deleteFile(currentWorkspace, filename);
+              
+              // Usuń z FileSystem
               const fileUri = (FileSystem.documentDirectory || '') + currentWorkspace + '/' + filename;
-              await FileSystem.deleteAsync(fileUri, { idempotent: true });
-              loadFiles(currentWorkspace);
+              const info = await FileSystem.getInfoAsync(fileUri);
+              if (info.exists) {
+                await FileSystem.deleteAsync(fileUri, { idempotent: true });
+              }
+              
+              loadFilesData(currentWorkspace);
             } catch (error) {
               Alert.alert("Błąd", "Nie udało się usunąć pliku");
               console.error(error);
@@ -182,7 +201,7 @@ export default function HomeScreen() {
             />
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 15 }}>
               <Button title="Anuluj" color="#888" onPress={() => setIsWorkspaceModalVisible(false)} />
-              <Button title="Utwórz" onPress={createWorkspace} />
+              <Button title="Utwórz" onPress={createWorkspaceData} />
             </View>
           </View>
         </View>
